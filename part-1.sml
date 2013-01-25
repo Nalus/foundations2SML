@@ -1,8 +1,18 @@
 datatype listok = SET of listok list | TUPLE of listok list | INT of int
 datatype penek = NODE of {data:listok, left: penek, right: penek} | EMPTY
-exception unkownInput
 
-fun printTree (tree:penek) = print "penek!\n"
+(* printing functions *)
+fun printVal (INT data) = print (Int.toString data); print ","
+  |  printVal (SET ((INT h)::t) = print "{"; printVal h; printVal (SET t); print "}"
+  |  printVal (SET ((SET s)::t)) = print "{"; printVal h; printVal (SET t); print "}"
+  |  printVal (SET ((TUPLE s)::t)) = print "{"; printVal h; printVal (SET t); print "}"
+  |  printVal (TUPLE (h::t)) = print "("; printVal h; printVal (TUPLE t); print ")"
+
+fun printPenek (NODE{data=data, left=left, right=right}) = (*print "penek!\n"*)
+  if (left = EMPTY) then () else printPenek(left); printVal data;
+  if (right = EMPTY) then () else printPenek(right)
+(* end of printing functions *)
+
 
 (* helper functions for comparator, mostly for maintainability improvement *)
 fun sameOrder (SET []) (SET []) = true
@@ -14,6 +24,7 @@ local
   fun helper max (SET []) = max
   | helper max (SET((INT h)::t)) = helper (if h > max then h else max) (SET t)
   | helper max (SET((SET s)::t)) = helper (helper max (SET s)) (SET t)
+  | helper max (SET((TUPLE tu)::t)) = helper (helper max (TUPLE tu)) (SET t)
   | helper max (TUPLE []) = max
   | helper max (TUPLE((INT h)::t)) = helper (if h > max then h else max) (TUPLE t)
   | helper max (TUPLE((SET s)::t)) = helper (helper max (SET s)) (TUPLE t)
@@ -43,7 +54,6 @@ fun compare ((SET []), (SET [])) = EQUAL
     |  GREATER => GREATER
     |  EQUAL   => if(sameOrder (TUPLE t1) (TUPLE t2)) then EQUAL else (if((maxVal (TUPLE t1)) > (maxVal (TUPLE t2))) then GREATER else LESS))
   | compare ((INT num1), (INT num2)) = Int.compare(num1, num2)
-  (*| compare _ _ = raise unkownInput redundunt warning*)
 (* end of comparator for listok *)
 
 (* Tree data structure methods *)
@@ -106,4 +116,4 @@ val x3 = SET [TUPLE[INT 1, INT 2], TUPLE[INT 3, INT 4]];
 val x8 = TUPLE [TUPLE [INT 0, INT 1], TUPLE [INT 3, TUPLE [INT 4, INT 5]]];
 val root : penek = insert(EMPTY,x0);
 insert(root,x1);insert(root,x2);
-print "I am compiled at 22:59\n";
+(*printPenek(root);*)
