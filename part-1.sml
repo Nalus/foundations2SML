@@ -8,15 +8,18 @@ fun sameOrder(SET []) (SET []) = true
   | sameOrder(TUPLE []) (TUPLE []) = true
   | sameOrder(TUPLE (h1::t1)) (TUPLE (h2::t2)) = if h1 = h2 then sameOrder (TUPLE t1) (TUPLE t2) else false
 
-fun maxValS (SET (h::t)) = 
-  let
-    
+local
+  fun helper max [] = max
+  | helper max (h::t) = helper (if h > max then h else max) t
+in
+  fun maxValS (SET li) = helper 0 li
+end;
 
 (* end of help functions for comparator *)
 
 (* comparator for listok *)
 fun compare (SET []) (SET []) = EQUAL
-  | compare (SET l1) (SET l2) = (case compare (l1.length) (l2.length) of
+  | compare (SET l1) (SET l2) = (case compare (length l1) (length l2) of
        LESS    => LESS
     |  GREATER => GREATER
     |  EQUAL   => if (sameOrder l1 l2) then EQUAL else (if (maxValS l1) > (maxValS l2) then GREATER else LESS))
