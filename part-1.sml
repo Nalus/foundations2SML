@@ -3,10 +3,10 @@ datatype mytree = NODE of {data:listok, left: mytree, right: mytree} | EMPTY
 exception unkownInput
 
 (* helper functions for comparator, mostly for maintainability improvement *)
-fun sameOrder(SET []) (SET []) = true
-  | sameOrder(SET (h1::t1)) (SET (h2::t2)) = if h1 = h2 then sameOrder (SET t1) (SET t2) else false
-  | sameOrder(TUPLE []) (TUPLE []) = true
-  | sameOrder(TUPLE (h1::t1)) (TUPLE (h2::t2)) = if h1 = h2 then sameOrder (TUPLE t1) (TUPLE t2) else false
+fun sameOrder (SET []) (SET []) = true
+  | sameOrder (SET (h1::t1)) (SET (h2::t2)) = if h1 = h2 then sameOrder (SET t1) (SET t2) else false
+  | sameOrder (TUPLE []) (TUPLE []) = true
+  | sameOrder (TUPLE (h1::t1)) (TUPLE (h2::t2)) = if h1 = h2 then sameOrder (TUPLE t1) (TUPLE t2) else false
 
 local
   fun helper max (SET []) = max
@@ -24,24 +24,23 @@ end;
 
 (* comparator for listok *)
 fun compare (SET []) (SET []) = EQUAL
-  | compare (SET l1) (SET l2) = (case compare (length l1) (length l2) of
-       LESS    => LESS
-    |  GREATER => GREATER
-    |  EQUAL   => if (sameOrder l1 l2) then EQUAL else (if (maxValS l1) > (maxValS l2) then GREATER else LESS))
   | compare (TUPLE []) (TUPLE []) = EQUAL
-  (*| compare (TUPLE (h1::t1)) (TUPLE (h2::t2)) = if h1 = h2 then compare (SET t1) (SET t2) else false*)
-  | compare (TUPLE t1) (TUPLE t2) = (case compare (t1.length) (t2.length) of
-       LESS    => LESS
-    |  GREATER => GREATER
-    |  EQUAL   => if (sameOrder t1 t2) then EQUAL else (if (maxValT t1) > (maxValT t2) then GREATER else LESS))
-  | compare (INT num1) (INT num2) = Int.compare(num1, num2)
-  (* compare for listok cnstructor *)
+  (* compare for listok cnstructors *)
   | compare (INT _) (SET _) = LESS
   | compare (INT _) (TUPLE _) = LESS
   | compare (SET _) (INT _) = GREATER
   | compare (SET _) (TUPLE _) = LESS
   | compare (TUPLE _) (INT _) = GREATER
   | compare (TUPLE _) (SET _) = GREATER
+  | compare (SET l1) (SET l2) = (case Int.compare((List.length l1), (List.length l2)) of
+       LESS    => LESS
+    |  GREATER => GREATER
+    |  EQUAL   => if(sameOrder (SET l1) (SET l2)) then EQUAL else (if((maxVal (SET l1)) > (maxVal (SET l2))) then GREATER else LESS))
+  | compare (TUPLE t1) (TUPLE t2) = (case Int.compare((List.length t1), (List.length t2)) of
+       LESS    => LESS
+    |  GREATER => GREATER
+    |  EQUAL   => if(sameOrder (TUPLE t1) (TUPLE t2)) then EQUAL else (if((maxVal (TUPLE t1)) > (maxVal (TUPLE t2))) then GREATER else LESS))
+  | compare (INT num1) (INT num2) = Int.compare(num1, num2)
   | compare _ _ = raise unkownInput
 (* end of comparator for listok *)
 
