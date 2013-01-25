@@ -1,6 +1,8 @@
 datatype mydt = INT of int | SET of int list | TUPLE of mydt list
 datatype mytree = NODE of {data:mydt, left: mytree, right: mytree} | EMPTY
 
+type nodeVal = {intval:int, typ:string, array:mydt}
+
 (*fun printList [] = () 
   | printList li = (print (Int.toString (hd li)); print ",";printList (tl li)) ;
 
@@ -65,6 +67,7 @@ end;
 val x0 = INT 8;
 val x1 = TUPLE [INT 1,INT 2,INT 3,INT 4,INT 5,INT 6,INT 7,x0];
 val x2 = TUPLE [x1, TUPLE [INT 1, x1]];
+insertS(EMPTY, INT 2);
 
 (* process input *)
 (*print "x0  = ";operator x0;print ";\n";
