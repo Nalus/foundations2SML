@@ -10,32 +10,54 @@ fun printInt a = print (Int.toString a);
 fun operator (INT a) = printInt a
   | operator (SET b) = printList b;*)
 
+
 (* Tree data structure methods *)
-val tree : mytree = (-1 * EMPTY * EMPTY);
-(*fun addNode (mydt * mytree * mytree) = find leaf*)
 
 (* following functions have been taken from http://en.literateprograms.org/Binary_search_tree_(Standard_ML) *)
 fun search(tree:mytree, compare, data:mydt) = 
-  let fun s(EMPTY) = -1
-  | s(NODE{data=nodedata,left=left,right=right}) = 
-    (case compare(data, nodedata) of
-      LESS    => s(left)
-      | GREATER => s(right)
-      | EQUAL   => SOME nodedata)
+  let fun s(EMPTY) = NONE
+    | s(NODE{data=nodedata,left=left,right=right}) = 
+      (case compare(data, nodedata) of
+        LESS    => s(left)
+        | GREATER => s(right)
+        | EQUAL   => SOME nodedata)
   in
     s(tree)
-  end;
+end;
 
-fun insert(tree : 'a tree, compare, data : 'a) = 
-    let fun i(Leaf) = Node{data=data, left=Leaf, right=Leaf}
-          | i(Node{data=nodedata,left=left,right=right}) = 
-                (case compare(data, nodedata) of
-                      LESS    => Node{data=nodedata, left=i(left), right=right}
-                    | GREATER => Node{data=nodedata, left=left, right=i(right)}
-                    | EQUAL   => Node{data=nodedata, left=left, right=right})
-    in
-        i(tree)
-    end
+fun insert(tree:mytree, compare, data : mydt) = 
+  let fun i(EMPTY) = NODE{data=data, left=EMPTY, right=EMPTY}
+    | i(NODE{data=nodedata,left=left,right=right}) = 
+      (case compare(data, nodedata) of
+        LESS    => NODE{data=nodedata, left=i(left), right=right}
+        | GREATER => NODE{data=nodedata, left=left, right=i(right)}
+        | EQUAL   => NODE{data=nodedata, left=left, right=right})
+  in
+    i(tree)
+end;
+
+fun delete(tree : mytree, compare, data : mydt) = 
+  let
+    fun valueMax(NODE{data=nodedata,right=EMPTY,...}) = nodedata
+    | valueMax(NODE{right=right,...}) = valueMax(right)
+    fun deleteMax(node as NODE{data=nodedata,left=left,right=LEAF}) =
+      deleteNode(node)
+    | deleteMax(NODE{data=nodedata,left=left,right=right}) =
+      NODE{data=nodedata,left=left,right=deleteMax(right)}
+    and deleteNode(NODE{data=nodedata,left=EMPTY,right=EMPTY}) = EMPTY
+    | deleteNode(NODE{data=nodedata,left=EMPTY,right=right}) = right
+    | deleteNode(NODE{data=nodedata,left=left,right=EMPTY})  = left
+    | deleteNode(NODE{data=nodedata,left=left,right=right}) =
+      NODE{data=valueMax(left), left=deleteMax(left), right=right}
+    fun d(EMPTY) = EMPTY (* data was not found *)
+    | d(node as NODE{data=nodedata,left=left,right=right}) = 
+      (case compare(data, nodedata) of
+        LESS    => NODE{data=nodedata,left=d(left),right=right}
+      | GREATER => NODE{data=nodedata,left=left,right=d(right)}
+      | EQUAL   => deleteNode(node))
+  in
+    d(tree)
+end;
 
 (* functions above have been taken from http://en.literateprograms.org/Binary_search_tree_(Standard_ML) *)
 
