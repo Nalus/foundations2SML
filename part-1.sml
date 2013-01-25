@@ -1,6 +1,8 @@
 datatype listok = SET of listok list | TUPLE of listok list | INT of int
-datatype mytree = NODE of {data:listok, left: mytree, right: mytree} | EMPTY
+datatype penek = NODE of {data:listok, left: penek, right: penek} | EMPTY
 exception unkownInput
+
+fun printTree (tree:penek) = print "penek!\n"
 
 (* helper functions for comparator, mostly for maintainability improvement *)
 fun sameOrder (SET []) (SET []) = true
@@ -47,7 +49,7 @@ fun compare ((SET []), (SET [])) = EQUAL
 (* Tree data structure methods *)
 
 (* following functions have been taken from http://en.literateprograms.org/Binary_search_tree_(Standard_ML) *)
-fun search(tree:mytree, data:listok) = 
+fun search(tree:penek, data:listok) = 
   let
     fun s(EMPTY) = NONE
     | s(NODE{data=nodedata,left=left,right=right}) = 
@@ -59,7 +61,7 @@ fun search(tree:mytree, data:listok) =
     s(tree)
 end;
 
-fun insert(tree:mytree, data : listok) = 
+fun insert(tree:penek, data : listok) = 
   let
     fun i(EMPTY) = NODE{data=data, left=EMPTY, right=EMPTY}
     | i(NODE{data=nodedata,left=left,right=right}) = 
@@ -71,7 +73,7 @@ fun insert(tree:mytree, data : listok) =
     i(tree)
 end;
 
-fun delete(tree : mytree, data : listok) = 
+fun delete(tree : penek, data : listok) = 
   let
     fun valueMax(NODE{data=nodedata,right=EMPTY,...}) = nodedata
     | valueMax(NODE{right=right,...}) = valueMax(right)
@@ -102,6 +104,6 @@ val x1 = SET [INT 1,INT 2,INT 3,INT 4,INT 5,INT 6,INT 7,x0];
 val x2 = SET [x0, x1];
 val x3 = SET [TUPLE[INT 1, INT 2], TUPLE[INT 3, INT 4]];
 val x8 = TUPLE [TUPLE [INT 0, INT 1], TUPLE [INT 3, TUPLE [INT 4, INT 5]]];
-val root : mytree = insert(EMPTY,x0);
+val root : penek = insert(EMPTY,x0);
 insert(root,x1);insert(root,x2);
 print "I am compiled at 22:59\n";
