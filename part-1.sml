@@ -9,12 +9,16 @@ fun sameOrder(SET []) (SET []) = true
   | sameOrder(TUPLE (h1::t1)) (TUPLE (h2::t2)) = if h1 = h2 then sameOrder (TUPLE t1) (TUPLE t2) else false
 
 local
-  fun helper max [] = max
-  | helper max (h::t) = helper (if h > max then h else max) t
+  fun helper max (SET []) = max
+  | helper max (SET((INT h)::t)) = helper (if h > max then h else max) (SET t)
+  | helper max (SET((SET s)::t)) = helper (helper max (SET s)) (SET t)
+  | helper max (TUPLE []) = max
+  | helper max (TUPLE((INT h)::t)) = helper (if h > max then h else max) (TUPLE t)
+  | helper max (TUPLE((SET s)::t)) = helper (helper max (SET s)) (TUPLE t)
+  | helper max (TUPLE((TUPLE tu)::t)) = helper (helper max (TUPLE tu)) (TUPLE t)
 in
-  fun maxValS (SET li) = helper 0 li
+  fun maxVal li = helper 0 li
 end;
-
 
 (* end of help functions for comparator *)
 
@@ -98,4 +102,5 @@ val x0 = INT 8;
 val x1 = SET [INT 1,INT 2,INT 3,INT 4,INT 5,INT 6,INT 7,x0];
 val x2 = SET [x0, x1];
 val x3 = SET [TUPLE[INT 1, INT 2], TUPLE[INT 3, INT 4]];
-val x6 = x2 = SET[
+val x8 = TUPLE [TUPLE [INT 0, INT 1], TUPLE [INT 3, TUPLE [INT 4, INT 5]]];
+maxVal x8;
