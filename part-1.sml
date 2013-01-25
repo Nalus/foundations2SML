@@ -1,5 +1,6 @@
 datatype listok = SET of int list | TUPLE of listok list | INT of int
 datatype mytree = NODE of {data:listok, left: mytree, right: mytree} | EMPTY
+exception unkownInput
 
 
 (* comparator for listok *)
@@ -23,7 +24,7 @@ fun compare (SET []) (SET []) = EQUAL
   | compare (SET _) (TUPLE _) = LESS
   | compare (TUPLE _) (INT _) = GREATER
   | compare (TUPLE _) (SET _) = GREATER
-  | compare _ _ = false;
+  | compare _ _ = raise unkownInput
 (* end of comparator for listok *)
 
 (* Tree data structure methods *)
