@@ -1,4 +1,4 @@
-datatype listok = SET of int list | TUPLE of listok list | INT of int
+datatype listok = SET of listok list | TUPLE of listok list | INT of int
 datatype mytree = NODE of {data:listok, left: mytree, right: mytree} | EMPTY
 exception unkownInput
 
@@ -14,6 +14,7 @@ local
 in
   fun maxValS (SET li) = helper 0 li
 end;
+
 
 (* end of help functions for comparator *)
 
@@ -94,6 +95,7 @@ end;
 
 (*  input values  *)
 val x0 = INT 8;
-val x1 = TUPLE [INT 1,INT 2,INT 3,INT 4,INT 5,INT 6,INT 7,x0];
-val x2 = TUPLE [x1, TUPLE [INT 1, x1]];
-
+val x1 = SET [INT 1,INT 2,INT 3,INT 4,INT 5,INT 6,INT 7,x0];
+val x2 = SET [x0, x1];
+val x3 = SET [TUPLE[INT 1, INT 2], TUPLE[INT 3, INT 4]];
+val x6 = x2 = SET[
