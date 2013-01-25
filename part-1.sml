@@ -2,20 +2,30 @@ datatype listok = SET of int list | TUPLE of listok list | INT of int
 datatype mytree = NODE of {data:listok, left: mytree, right: mytree} | EMPTY
 exception unkownInput
 
+(* helper functions for comparator, mostly for maintainability improvement *)
+fun sameOrder(SET []) (SET []) = true
+  | sameOrder(SET (h1::t1)) (SET (h2::t2)) = if h1 = h2 then sameOrder (SET t1) (SET t2) else false
+  | sameOrder(TUPLE []) (TUPLE []) = true
+  | sameOrder(TUPLE (h1::t1)) (TUPLE (h2::t2)) = if h1 = h2 then sameOrder (TUPLE t1) (TUPLE t2) else false
+
+fun maxValS (SET (h::t)) = 
+  let
+    
+
+(* end of help functions for comparator *)
 
 (* comparator for listok *)
 fun compare (SET []) (SET []) = EQUAL
-  (*| compare (SET (h1::t1)) (SET (h2::t2)) = if h1 = h2 then compare (SET t1) (SET t2) else false*)
   | compare (SET l1) (SET l2) = (case compare (l1.length) (l2.length) of
        LESS    => LESS
     |  GREATER => GREATER
-    |  EQUAL   => if sameOrderS(l1,l2) then EQUAL else (if (maxValS l1) > (maxValS l2) then GREATER else LESS))
+    |  EQUAL   => if (sameOrder l1 l2) then EQUAL else (if (maxValS l1) > (maxValS l2) then GREATER else LESS))
   | compare (TUPLE []) (TUPLE []) = EQUAL
   (*| compare (TUPLE (h1::t1)) (TUPLE (h2::t2)) = if h1 = h2 then compare (SET t1) (SET t2) else false*)
   | compare (TUPLE t1) (TUPLE t2) = (case compare (t1.length) (t2.length) of
        LESS    => LESS
     |  GREATER => GREATER
-    |  EQUAL   => if sameOrderT(t1,t2) then EQUAL else (if (maxValT t1) > (maxValT t2) then GREATER else LESS))
+    |  EQUAL   => if (sameOrder t1 t2) then EQUAL else (if (maxValT t1) > (maxValT t2) then GREATER else LESS))
   | compare (INT num1) (INT num2) = Int.compare(num1, num2)
   (* compare for listok cnstructor *)
   | compare (INT _) (SET _) = LESS
@@ -31,7 +41,8 @@ fun compare (SET []) (SET []) = EQUAL
 
 (* following functions have been taken from http://en.literateprograms.org/Binary_search_tree_(Standard_ML) *)
 fun search(tree:mytree, compare, data:listok) = 
-  let fun s(EMPTY) = NONE
+  let
+    fun s(EMPTY) = NONE
     | s(NODE{data=nodedata,left=left,right=right}) = 
       (case compare(data, nodedata) of
         LESS    => s(left)
@@ -42,7 +53,8 @@ fun search(tree:mytree, compare, data:listok) =
 end;
 
 fun insert(tree:mytree, compare, data : listok) = 
-  let fun i(EMPTY) = NODE{data=data, left=EMPTY, right=EMPTY}
+  let
+    fun i(EMPTY) = NODE{data=data, left=EMPTY, right=EMPTY}
     | i(NODE{data=nodedata,left=left,right=right}) = 
       (case compare(data, nodedata) of
           LESS    => NODE{data=nodedata, left=i(left), right=right}
