@@ -3,14 +3,18 @@ datatype penek = NODE of {data:listok, left: penek, right: penek} | EMPTY
 
 (* printing functions *)
 local
-  fun printS (INT i) = (print (Int.toString i); print ",")
+  fun printS (INT num) = (print (Int.toString num); print ",")
   |  printS (SET []) = ()
+  |  printS (SET ((INT h)::t)) = (printS (INT h); printS (SET t))
+  |  printS (SET ((SET h)::t)) = (print "{"; printS (SET h); print "}"; printS (SET t))
+  |  printS (SET ((TUPLE h)::t)) = (print "("; printS (TUPLE h); print ")"; printS (SET t))
   |  printS (TUPLE []) = ()
-  |  printS (SET (h::t)) = (printS h; printS (SET t))
-  |  printS (TUPLE (h::t)) = (printS h; printS (TUPLE t))
+  |  printS (TUPLE ((INT h)::t)) = (printS (INT h); printS (TUPLE t))
+  |  printS (TUPLE ((SET h)::t)) = (print "{"; printS (SET h); print "}"; printS (TUPLE t))
+  |  printS (TUPLE ((TUPLE h)::t)) = (print "("; printS (TUPLE h); print ")"; printS (TUPLE t))
 in  fun printVal (INT i) = (print (Int.toString i); print ";\n")
     |  printVal (SET s) = (print "{"; printS (SET s); print "};\n")
-    |  printVal (TUPLE tu) = (print "("; printS (TUPLE tu); print "};\n")
+    |  printVal (TUPLE tu) = (print "("; printS (TUPLE tu); print ");\n")
 end;
 
 fun printPenek (NODE{data=data, left=left, right=right}) = ((if (left = EMPTY) then () else printPenek(left));
@@ -112,6 +116,13 @@ end;
 
 (* functions above have been taken from http://en.literateprograms.org/Binary_search_tree_(Standard_ML) *)
 
+local
+  fun constructor tree (SET []) = tree
+  |  constructor tree (SET (h::t)) = constructor (insert(tree, h)) (SET t)
+in
+  fun constructTree li = constructor EMPTY (SET li)
+end;
+
 (*  input values  *)
 val x0 = INT 8;
 val x1 = SET [INT 1,INT 2,INT 3,INT 4,INT 5,INT 6,INT 7,x0];
@@ -119,6 +130,6 @@ val x2 = SET [x0, x1];
 val x3 = SET [TUPLE[INT 1, INT 2], TUPLE[INT 3, INT 4]];
 val x8 = TUPLE [TUPLE [INT 0, INT 1], TUPLE [INT 3, TUPLE [INT 4, INT 5]]];
 
-(*val root = constructTree [x0,x1,x2,x3,x8];*)
-val root = insert(EMPTY, x1);
+(*val root = constructTree (SET [x0,x1,x2,x3,x8]);*)
+val root = insert(EMPTY, x8);
 printPenek(root);
