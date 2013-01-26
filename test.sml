@@ -1,6 +1,34 @@
 datatype listok = SET of listok list | TUPLE of listok list | INT of int
 datatype penek = NODE of {data:listok, left: penek, right: penek} | EMPTY
 
+(* printing functions *)
+local
+  local
+    fun isLast [] = true
+    | isLast _ = false
+  in
+    fun printS (INT num) = (print (Int.toString num))
+    |  printS (SET []) = print "}"
+    |  printS (SET ((INT h)::t)) = (printS (INT h); if(isLast t) then () else print ","; printS (SET t))
+    |  printS (SET ((SET h)::t)) = (print "{"; printS (SET h); printS (SET t))
+    |  printS (SET ((TUPLE h)::t)) = (print "("; printS (TUPLE h); print ")"; printS (SET t))
+    |  printS (TUPLE []) = print ")"
+    |  printS (TUPLE ((INT h)::t)) = (printS (INT h); if(isLast t) then () else print ","; printS (TUPLE t))
+    |  printS (TUPLE ((SET h)::t)) = (print "{"; printS (SET h); print "}"; printS (TUPLE t))
+    |  printS (TUPLE ((TUPLE h)::t)) = (print "("; printS (TUPLE h);  printS (TUPLE t))
+  end;
+in
+  fun printVal (INT i) = (print (Int.toString i); print ";\n")
+  |  printVal (SET s) = (print "{"; printS (SET s); print ";\n")
+  |  printVal (TUPLE tu) = (print "("; printS (TUPLE tu); print ";\n")
+end;
+
+fun printPenek (NODE{data=data, left=left, right=right}) = ((if (left = EMPTY) then () else printPenek(left));
+  printVal data; print "\n"; (if (right = EMPTY) then () else printPenek(right)))
+(* end of printing functions *)
+
+
+(* helper functions for comparator, mostly for maintainability improvement *)
 fun sameOrder (SET []) (SET []) = true
   | sameOrder (SET (h1::t1)) (SET (h2::t2)) = if h1 = h2 then sameOrder (SET t1) (SET t2) else false
   | sameOrder (TUPLE []) (TUPLE []) = true
@@ -19,6 +47,9 @@ in
   fun maxVal li = helper 0 li
 end;
 
+(* end of help functions for comparator *)
+
+(* comparator for listok *)
 fun compare ((SET []), (SET [])) = EQUAL
   | compare ((TUPLE []), (TUPLE [])) = EQUAL
   (* compare for listok cnstructors *)
@@ -37,8 +68,24 @@ fun compare ((SET []), (SET [])) = EQUAL
     |  GREATER => GREATER
     |  EQUAL   => if(sameOrder (TUPLE t1) (TUPLE t2)) then EQUAL else (if((maxVal (TUPLE t1)) > (maxVal (TUPLE t2))) then GREATER else LESS))
   | compare ((INT num1), (INT num2)) = Int.compare(num1, num2)
+(* end of comparator for listok *)
 
-fun insert(tree:penek, data:listok) = 
+(* Tree data structure methods *)
+
+(* following functions have been taken from http://en.literateprograms.org/Binary_search_tree_(Standard_ML) *)
+fun search(tree:penek, data:listok) = 
+  let
+    fun s(EMPTY) = NONE
+    | s(NODE{data=nodedata,left=left,right=right}) = 
+      (case compare(data, nodedata) of
+        LESS    => s(left)
+        | GREATER => s(right)
+        | EQUAL   => SOME nodedata)
+  in
+    s(tree)
+end;
+
+fun insert(tree:penek, data : listok) = 
   let
     fun i(EMPTY) = NODE{data=data, left=EMPTY, right=EMPTY}
     | i(NODE{data=nodedata,left=left,right=right}) = 
@@ -50,39 +97,55 @@ fun insert(tree:penek, data:listok) =
     i(tree)
 end;
 
+fun delete(tree : penek, data : listok) = 
+  let
+    fun valueMax(NODE{data=nodedata,right=EMPTY,...}) = nodedata
+    | valueMax(NODE{right=right,...}) = valueMax(right)
+    fun deleteMax(node as NODE{data=nodedata,left=left,right=LEAF}) =
+      deleteNode(node)
+    | deleteMax(NODE{data=nodedata,left=left,right=right}) =
+      NODE{data=nodedata,left=left,right=deleteMax(right)}
+    and deleteNode(NODE{data=nodedata,left=EMPTY,right=EMPTY}) = EMPTY
+    | deleteNode(NODE{data=nodedata,left=EMPTY,right=right}) = right
+    | deleteNode(NODE{data=nodedata,left=left,right=EMPTY})  = left
+    | deleteNode(NODE{data=nodedata,left=left,right=right}) =
+      NODE{data=valueMax(left), left=deleteMax(left), right=right}
+    fun d(EMPTY) = EMPTY (* data was not found *)
+    | d(node as NODE{data=nodedata,left=left,right=right}) = 
+      (case compare(data, nodedata) of
+        LESS    => NODE{data=nodedata,left=d(left),right=right}
+      | GREATER => NODE{data=nodedata,left=left,right=d(right)}
+      | EQUAL   => deleteNode(node))
+  in
+    d(tree)
+end;
+
+(* end of functions that have been taken from http://en.literateprograms.org/Binary_search_tree_(Standard_ML) *)
+
+(* constructor for trees *)
 local
   fun constructor tree (SET []) = tree
   |  constructor tree (SET (h::t)) = constructor (insert(tree, h)) (SET t)
 in
   fun constructTree li = constructor EMPTY (SET li)
 end;
+(*end of tree constructor *)
 
-(* printing functions *)
-local
-  fun printS (INT num) = (print (Int.toString num); print ",")
-  |  printS (SET []) = ()
-  |  printS (SET ((INT h)::t)) = (printS (INT h); printS (SET t))
-  |  printS (SET ((SET h)::t)) = (print "{"; printS (SET h); print "}"; printS (SET t))
-  |  printS (SET ((TUPLE h)::t)) = (print "("; printS (TUPLE h); print ")"; printS (SET t))
-  |  printS (TUPLE []) = ()
-  |  printS (TUPLE ((INT h)::t)) = (printS (INT h); printS (TUPLE t))
-  |  printS (TUPLE ((SET h)::t)) = (print "{"; printS (SET h); print "}"; printS (TUPLE t))
-  |  printS (TUPLE ((TUPLE h)::t)) = (print "("; printS (TUPLE h); print ")"; printS (TUPLE t))
-in  fun printVal (INT i) = (print (Int.toString i); print ";\n")
-    |  printVal (SET s) = (print "{"; printS (SET s); print "};\n")
-    |  printVal (TUPLE tu) = (print "("; printS (TUPLE tu); print ");\n")
-end;
+(* set functions U, ∩, \ *)
+fun union (SET s1) (SET s2) = (if (hd s1)=(hd s2) then () else (hd s2)::s1); union (SET s1) (SET t2)
+| union (SET s1) (SET []) = s1
+fun diff (SET (h1::t1)) (SET (h2::t2)) = SET [INT 1]
+fun inter (SET (h1::t1)) (SET (h2::t2)) = SET [INT 2]
+(* end of set functions *)
 
-fun printPenek (NODE{data=data, left=left, right=right}) = (if (left = EMPTY) then () else printPenek(left);
-  printVal data; print "\n"; (if (right = EMPTY) then () else printPenek(right)))
-(* end of printing functions *)
-
+(*  input values  *)
 val x0 = INT 8;
 val x1 = SET [INT 1,INT 2,INT 3,INT 4,INT 5,INT 6,INT 7,x0];
-val x2 = SET [x0, x1];
-val x3 = SET [TUPLE[INT 1, INT 2], TUPLE[INT 3, INT 4]];
-val x8 = TUPLE [TUPLE [INT 0, INT 1], TUPLE [INT 3, TUPLE [INT 4, INT 5]]];
+val x2 = SET [x1, TUPLE [INT 1,x1]];
+val x3 = TUPLE [x2,x1];
+val x4 = union (SET [x3]) x2
+val x5 = diff x4 (SET [x1])
+val x6 = inter x4 (SET [x1])
 
-(*val root = constructTree [x0,x1,x2,x3,x8];*)
-val root = insert(EMPTY, x8);
+val root = constructTree [x0,x1,x2,x3,x4,x5,x6];
 printPenek(root);

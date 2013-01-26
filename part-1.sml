@@ -132,9 +132,11 @@ end;
 (*  input values  *)
 val x0 = INT 8;
 val x1 = SET [INT 1,INT 2,INT 3,INT 4,INT 5,INT 6,INT 7,x0];
-val x2 = SET [x0, x1];
-val x3 = SET [TUPLE[INT 1, INT 2], TUPLE[INT 3, INT 4]];
-val x8 = TUPLE [TUPLE [INT 0, INT 1], TUPLE [INT 3, TUPLE [INT 4, INT 5]]];
+val x2 = SET [x1, TUPLE [INT 1,x1]];
+val x3 = TUPLE [x2,x1];
+val x4 = SET [x3] ∪ x2
+val x5 = x4 ∖ SET [x1]
+val x6 = x4 ∩ SET [x1]
 
-val root = constructTree [x0,x1,x2,x3,x8];
+val root = constructTree [x0,x1,x2,x3,x4,x5,x6];
 printPenek(root);
