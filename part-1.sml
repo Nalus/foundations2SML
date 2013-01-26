@@ -2,12 +2,19 @@ datatype listok = SET of listok list | TUPLE of listok list | INT of int
 datatype penek = NODE of {data:listok, left: penek, right: penek} | EMPTY
 
 (* printing functions *)
-fun printVal (INT data) = (print (Int.toString data); print ",")
-  |  printVal (SET(h::t)) = (print "{"; printVal h; printVal (SET t); print "}")
-  |  printVal (TUPLE (h::t)) = (print "("; printVal h; printVal (TUPLE t); print ")")
+local
+  fun printS (INT i) = (print (Int.toString i); print ",")
+  |  printS (SET []) = ()
+  |  printS (TUPLE []) = ()
+  |  printS (SET (h::t)) = (printS h; printS (SET t))
+  |  printS (TUPLE (h::t)) = (printS h; printS (TUPLE t))
+in  fun printVal (INT i) = (print (Int.toString i); print ";\n")
+    |  printVal (SET s) = (print "{"; printS (SET s); print "};\n")
+    |  printVal (TUPLE tu) = (print "("; printS (TUPLE tu); print "};\n")
+end;
 
 fun printPenek (NODE{data=data, left=left, right=right}) = ((if (left = EMPTY) then () else printPenek(left));
-  printVal data; (if (right = EMPTY) then () else printPenek(right)))
+  printVal data; print "\n"; (if (right = EMPTY) then () else printPenek(right)))
 (* end of printing functions *)
 
 
@@ -111,5 +118,7 @@ val x1 = SET [INT 1,INT 2,INT 3,INT 4,INT 5,INT 6,INT 7,x0];
 val x2 = SET [x0, x1];
 val x3 = SET [TUPLE[INT 1, INT 2], TUPLE[INT 3, INT 4]];
 val x8 = TUPLE [TUPLE [INT 0, INT 1], TUPLE [INT 3, TUPLE [INT 4, INT 5]]];
-insert(EMPTY,x0);insert(root,x1);insert(root,x2);
+
+(*val root = constructTree [x0,x1,x2,x3,x8];*)
+val root = insert(EMPTY, x1);
 printPenek(root);
