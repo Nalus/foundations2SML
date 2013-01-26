@@ -111,6 +111,5 @@ val x1 = SET [INT 1,INT 2,INT 3,INT 4,INT 5,INT 6,INT 7,x0];
 val x2 = SET [x0, x1];
 val x3 = SET [TUPLE[INT 1, INT 2], TUPLE[INT 3, INT 4]];
 val x8 = TUPLE [TUPLE [INT 0, INT 1], TUPLE [INT 3, TUPLE [INT 4, INT 5]]];
-val root : penek = insert(EMPTY,x0);
-insert(root,x1);insert(root,x2);
+insert(EMPTY,x0);insert(root,x1);insert(root,x2);
 printPenek(root);
