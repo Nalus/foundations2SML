@@ -2,15 +2,12 @@ datatype listok = SET of listok list | TUPLE of listok list | INT of int
 datatype penek = NODE of {data:listok, left: penek, right: penek} | EMPTY
 
 (* printing functions *)
-fun printVal (INT data) = print (Int.toString data); print ","
-  |  printVal (SET ((INT h)::t) = print "{"; printVal h; printVal (SET t); print "}"
-  |  printVal (SET ((SET s)::t)) = print "{"; printVal h; printVal (SET t); print "}"
-  |  printVal (SET ((TUPLE s)::t)) = print "{"; printVal h; printVal (SET t); print "}"
-  |  printVal (TUPLE (h::t)) = print "("; printVal h; printVal (TUPLE t); print ")"
+fun printVal (INT data) = (print (Int.toString data); print ",")
+  |  printVal (SET(h::t)) = (print "{"; printVal h; printVal (SET t); print "}")
+  |  printVal (TUPLE (h::t)) = (print "("; printVal h; printVal (TUPLE t); print ")")
 
-fun printPenek (NODE{data=data, left=left, right=right}) = (*print "penek!\n"*)
-  if (left = EMPTY) then () else printPenek(left); printVal data;
-  if (right = EMPTY) then () else printPenek(right)
+fun printPenek (NODE{data=data, left=left, right=right}) = ((if (left = EMPTY) then () else printPenek(left));
+  printVal data; (if (right = EMPTY) then () else printPenek(right)))
 (* end of printing functions *)
 
 
@@ -116,4 +113,4 @@ val x3 = SET [TUPLE[INT 1, INT 2], TUPLE[INT 3, INT 4]];
 val x8 = TUPLE [TUPLE [INT 0, INT 1], TUPLE [INT 3, TUPLE [INT 4, INT 5]]];
 val root : penek = insert(EMPTY,x0);
 insert(root,x1);insert(root,x2);
-(*printPenek(root);*)
+printPenek(root);

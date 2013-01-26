@@ -6,9 +6,8 @@ fun printVal (INT data) = (print (Int.toString data); print ",")
   |  printVal (SET(h::t)) = (print "{"; printVal h; printVal (SET t); print "}")
   |  printVal (TUPLE (h::t)) = (print "("; printVal h; printVal (TUPLE t); print ")")
 
-fun printPenek (NODE{data=data, left=left, right=right}) = (*print "penek!\n"*)
-  if (left = EMPTY) then () else printPenek(left); printVal data
-  if (right = EMPTY) then () else printPenek(right)
+fun printPenek (NODE{data=data, left=left, right=right}) = (if (left = EMPTY) then () else printPenek(left));
+  printVal data; (if (right = EMPTY) then () else printPenek(right));
 (* end of printing functions *)
 
 
