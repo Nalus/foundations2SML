@@ -24,7 +24,10 @@ in
 end;
 
 fun printPenek (NODE{data=data, left=left, right=right}) = ((if (left = EMPTY) then () else printPenek(left));
-  printVal data; print "\n"; (if (right = EMPTY) then () else printPenek(right)))
+  printVal data; (if (right = EMPTY) then () else printPenek(right)))
+
+fun printList (SET []) = ()
+|  printList (SET (h::t)) = (printVal h; printList (SET t))
 (* end of printing functions *)
 
 
@@ -124,7 +127,7 @@ end;
 
 (* constructor for trees *)
 local
-  fun constructor tree (SET []) = insert(tree, (SET []))
+  fun constructor tree (SET []) = tree
   |  constructor tree (SET (h::t)) = constructor (insert(tree, h)) (SET t)
 in
   fun constructTree li = constructor EMPTY (SET li)
@@ -145,7 +148,10 @@ val x3 = TUPLE [x2,x1];
 val x4 = union (SET [x3]) x2
 val x5 = diff x4 (SET [x1])
 val x6 = inter x4 (SET [x1])
-val x7 = SET []
 
-val root = constructTree [x0,x1,x2,x3,x4,x5,x7];
-printPenek(root);
+val root = constructTree [x0,x1,x2,x3,x4,x5,x6];
+printPenek root;
+print "**********************END OF TREE PRINTING**********************\n";
+val ar = SET [x0,x1,x2,x3,x4,x5,x6];
+printList ar;
+print "**********************END OF LIST PRINTING**********************\n";

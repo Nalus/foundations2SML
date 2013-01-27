@@ -24,7 +24,10 @@ in
 end;
 
 fun printPenek (NODE{data=data, left=left, right=right}) = ((if (left = EMPTY) then () else printPenek(left));
-  printVal data; print "\n"; (if (right = EMPTY) then () else printPenek(right)))
+  printVal data; (if (right = EMPTY) then () else printPenek(right)))
+
+fun printList (SET []) = ()
+|  printList (SET (h::t)) = (printVal h; printList (SET t))
 (* end of printing functions *)
 
 
@@ -120,23 +123,35 @@ fun delete(tree : penek, data : listok) =
     d(tree)
 end;
 
-(* functions above have been taken from http://en.literateprograms.org/Binary_search_tree_(Standard_ML) *)
+(* end of functions that have been taken from http://en.literateprograms.org/Binary_search_tree_(Standard_ML) *)
 
+(* constructor for trees *)
 local
   fun constructor tree (SET []) = tree
   |  constructor tree (SET (h::t)) = constructor (insert(tree, h)) (SET t)
 in
   fun constructTree li = constructor EMPTY (SET li)
 end;
+(*end of tree constructor *)
+
+(* set functions U, ∩, \ *)
+fun union (SET s1) (SET s2) = SET [INT 0](*(if (hd s1)=(hd s2) then () else (hd s2)::s1); union (SET s1) (SET t2)*)
+fun diff (SET (h1::t1)) (SET (h2::t2)) = SET [INT 1]
+fun inter (SET (h1::t1)) (SET (h2::t2)) = SET [INT 2]
+(* end of set functions *)
 
 (*  input values  *)
 val x0 = INT 8;
 val x1 = SET [INT 1,INT 2,INT 3,INT 4,INT 5,INT 6,INT 7,x0];
 val x2 = SET [x1, TUPLE [INT 1,x1]];
 val x3 = TUPLE [x2,x1];
-val x4 = SET [x3] ∪ x2
-val x5 = x4 ∖ SET [x1]
-val x6 = x4 ∩ SET [x1]
+val x4 = union (SET [x3]) x2
+val x5 = diff x4 (SET [x1])
+val x6 = inter x4 (SET [x1])
 
 val root = constructTree [x0,x1,x2,x3,x4,x5,x6];
-printPenek(root);
+printPenek root;
+print "**********************END OF TREE PRINTING**********************\n";
+val ar = SET [x0,x1,x2,x3,x4,x5,x6];
+printList ar;
+print "**********************END OF LIST PRINTING**********************\n";
