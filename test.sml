@@ -124,7 +124,7 @@ end;
 
 (* constructor for trees *)
 local
-  fun constructor tree (SET []) = tree
+  fun constructor tree (SET []) = insert(tree, (SET []))
   |  constructor tree (SET (h::t)) = constructor (insert(tree, h)) (SET t)
 in
   fun constructTree li = constructor EMPTY (SET li)
@@ -132,8 +132,7 @@ end;
 (*end of tree constructor *)
 
 (* set functions U, ∩, \ *)
-fun union (SET s1) (SET s2) = (if (hd s1)=(hd s2) then () else (hd s2)::s1); union (SET s1) (SET t2)
-| union (SET s1) (SET []) = s1
+fun union (SET s1) (SET s2) = SET [INT 0](*(if (hd s1)=(hd s2) then () else (hd s2)::s1); union (SET s1) (SET t2)*)
 fun diff (SET (h1::t1)) (SET (h2::t2)) = SET [INT 1]
 fun inter (SET (h1::t1)) (SET (h2::t2)) = SET [INT 2]
 (* end of set functions *)
@@ -146,6 +145,7 @@ val x3 = TUPLE [x2,x1];
 val x4 = union (SET [x3]) x2
 val x5 = diff x4 (SET [x1])
 val x6 = inter x4 (SET [x1])
+val x7 = SET []
 
-val root = constructTree [x0,x1,x2,x3,x4,x5,x6];
+val root = constructTree [x0,x1,x2,x3,x4,x5,x7];
 printPenek(root);
