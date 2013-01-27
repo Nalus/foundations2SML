@@ -8,19 +8,19 @@ local
     | isLast _ = false
   in
     fun printS (INT num) = (print (Int.toString num))
-    |  printS (SET []) = print "}"
+    |  printS (SET []) = ()
     |  printS (SET ((INT h)::t)) = (printS (INT h); if(isLast t) then () else print ","; printS (SET t))
-    |  printS (SET ((SET h)::t)) = (print "{"; printS (SET h); printS (SET t))
-    |  printS (SET ((TUPLE h)::t)) = (print "("; printS (TUPLE h); print ")"; printS (SET t))
-    |  printS (TUPLE []) = print ")"
+    |  printS (SET ((SET h)::t)) = (print "{"; printS (SET h); print "}"; if(isLast t) then () else print ","; printS (SET t))
+    |  printS (SET ((TUPLE h)::t)) = (print "("; printS (TUPLE h); print ")"; if(isLast t) then () else print ","; printS (SET t))
+    |  printS (TUPLE []) = ()
     |  printS (TUPLE ((INT h)::t)) = (printS (INT h); if(isLast t) then () else print ","; printS (TUPLE t))
-    |  printS (TUPLE ((SET h)::t)) = (print "{"; printS (SET h); print "}"; printS (TUPLE t))
-    |  printS (TUPLE ((TUPLE h)::t)) = (print "("; printS (TUPLE h);  printS (TUPLE t))
+    |  printS (TUPLE ((SET h)::t)) = (print "{"; printS (SET h); print "}"; if(isLast t) then () else print ","; printS (TUPLE t))
+    |  printS (TUPLE ((TUPLE h)::t)) = (print "("; printS (TUPLE h); print ")"; if(isLast t) then () else print ",";  printS (TUPLE t))
   end;
 in
-  fun printVal (INT i) = (print (Int.toString i); print ";\n")
+  fun printVal (INT i) = (print (Int.toString i); print "};\n")
   |  printVal (SET s) = (print "{"; printS (SET s); print ";\n")
-  |  printVal (TUPLE tu) = (print "("; printS (TUPLE tu); print ";\n")
+  |  printVal (TUPLE tu) = (print "("; printS (TUPLE tu); print ");\n")
 end;
 
 fun printPenek (NODE{data=data, left=left, right=right}) = ((if (left = EMPTY) then () else printPenek(left));
@@ -135,7 +135,23 @@ end;
 (*end of tree constructor *)
 
 (* set functions U, ∩, \ *)
-fun union (SET s1) (SET s2) = SET [INT 0](*(if (hd s1)=(hd s2) then () else (hd s2)::s1); union (SET s1) (SET t2)*)
+fun concatS (SET []) (INT data) = SET [INT data]
+|  concatS (INT data) (SET []) = SET [INT data]
+|  concatS (SET s) (INT data) = SET (s@[INT data])
+|  concatS (INT data) (SET s) = SET (s@[INT data])
+|  concatS (SET s1) (SET s2) = SET (s1@s2)
+|  concatS (TUPLE []) (INT  data) = TUPLE [INT data]
+|  concatS (INT data) (TUPLE []) = TUPLE [INT data]
+|  concatS (TUPLE t) (INT data) = TUPLE (t@[INT data])
+|  concatS (INT data) (TUPLE t) = TUPLE (t@[INT data])
+|  concatS (TUPLE t) (SET s) = SET (s@t) (* keeps semantics of union correct *)
+|  concatS (SET s) (TUPLE t) = SET (s@t)
+|  concatS (TUPLE t1) (TUPLE t2) = TUPLE (t1@t2)
+
+fun union (SET s1) (SET []) = SET s1
+|  union (SET []) (SET s2) = SET s2
+|  union (SET s1) (SET (h2::t2)) = union (if (List.exists (fn x => x=h2) s1) then (SET s1) else (concatS h2 (SET s1))) (SET t2)
+
 fun diff (SET (h1::t1)) (SET (h2::t2)) = SET [INT 1]
 fun inter (SET (h1::t1)) (SET (h2::t2)) = SET [INT 2]
 (* end of set functions *)
@@ -145,13 +161,13 @@ val x0 = INT 8;
 val x1 = SET [INT 1,INT 2,INT 3,INT 4,INT 5,INT 6,INT 7,x0];
 val x2 = SET [x1, TUPLE [INT 1,x1]];
 val x3 = TUPLE [x2,x1];
-val x4 = union (SET [x3]) x2
-val x5 = diff x4 (SET [x1])
-val x6 = inter x4 (SET [x1])
+val x4 = union (SET [x3]) x2;
+val x5 = diff x4 (SET [x1]);
+val x6 = inter x4 (SET [x1]);
 
-val root = constructTree [x0,x1,x2,x3,x4,x5,x6];
-printPenek root;
+constructTree [x0,x1,x2,x3,x4,x5,x6];
+printPenek it;
 print "**********************END OF TREE PRINTING**********************\n";
-val ar = SET [x0,x1,x2,x3,x4,x5,x6];
-printList ar;
+SET [x0,x1,x2,x3,x4,x5,x6];
+printList it;
 print "**********************END OF LIST PRINTING**********************\n";
