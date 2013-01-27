@@ -1,7 +1,29 @@
+(*
+The code below has been written by Konstantin Devyatov / kd79@hw.ac.uk / H00004640.
+A great contribution was given to this project by John Pirie in means of knowledgable advices and 
+  by Saad Arif in means of brainstorming and helping in debugging SML.
+
+First of all, I'd like to explain why half of the code is not actually used for this part of the assignment.
+  At the start of the development cycle, I have made a decision to make a tree data structure (which I thought was required). That's how binary tree functions insert, search and delete got adapted from the website noted in the comment before and after the code.
+  To adapt the binary tree implementation, I wrote a compare function for the data structure (it handles the enumeration listok in following order: TUPLE > SET > INT).
+  There are functions for printing trees and for batch node insertion. These are also unused together with the whole structure.
+
+Now to the code that is actually being used.
+  printVal prints anything of type listok with correct syntax symbols to acomodate the math representation model.
+  isLast checkes whether the head of the element is the last factual element of the list, by checking equality of its tail and [].
+  union, diff and inter are set manipulation functions that perform corresponding logical set operations.
+  At the moment there is no duplication checking, I plan to add it into insertion and union functions to erradicate all possibilities of it.
+
+  All functions are in working order. Invocations for tree and list data structures are commented out. The tree data structure given exactly the same output but in different order from input due to the way fun compare guides insertion.
+
+A note about variable names:
+  Listok is a russian word "листок", which means a leaf or a small list, written in latinic letters.
+  Penek is a russian word "пенёк", which means a tree stub, written in latinic letters.
+*)
 datatype listok = SET of listok list | TUPLE of listok list | INT of int
 datatype penek = NODE of {data:listok, left: penek, right: penek} | EMPTY
 
-(* printing functions *)
+(* PRINTING functions *)
 local
   local
     fun isLast [] = true
@@ -31,6 +53,7 @@ fun printList (SET []) = ()
 (* end of printing functions *)
 
 
+(* TREE DATA STRUCTURE methods *)
 (* helper functions for comparator, mostly for maintainability improvement *)
 fun sameOrder (SET []) (SET []) = true
   | sameOrder (SET (h1::t1)) (SET (h2::t2)) = if h1 = h2 then sameOrder (SET t1) (SET t2) else false
@@ -49,13 +72,12 @@ local
 in
   fun maxVal li = helper 0 li
 end;
-
 (* end of help functions for comparator *)
 
 (* comparator for listok *)
 fun compare ((SET []), (SET [])) = EQUAL
   | compare ((TUPLE []), (TUPLE [])) = EQUAL
-  (* compare for listok cnstructors *)
+  (* compare for listok constructors *)
   | compare ((INT _), (SET _)) = LESS
   | compare ((INT _), (TUPLE _)) = LESS
   | compare ((SET _), (INT _)) = GREATER
@@ -72,8 +94,6 @@ fun compare ((SET []), (SET [])) = EQUAL
     |  EQUAL   => if(sameOrder (TUPLE t1) (TUPLE t2)) then EQUAL else (if((maxVal (TUPLE t1)) > (maxVal (TUPLE t2))) then GREATER else LESS))
   | compare ((INT num1), (INT num2)) = Int.compare(num1, num2)
 (* end of comparator for listok *)
-
-(* Tree data structure methods *)
 
 (* following functions have been taken from http://en.literateprograms.org/Binary_search_tree_(Standard_ML) *)
 fun search(tree:penek, data:listok) = 
@@ -135,22 +155,9 @@ end;
 (*end of tree constructor *)
 
 (* SET MANIPULATION functions U, ∩, \ *)
-fun concatS (SET []) (INT data) = SET [INT data]
-|  concatS (INT data) (SET []) = SET [INT data]
-|  concatS (SET s) (INT data) = SET (s@[INT data])
-|  concatS (INT data) (SET s) = SET (s@[INT data])
-|  concatS (SET s1) (SET s2) = SET (s1@s2)
-|  concatS (TUPLE []) (INT  data) = TUPLE [INT data]
-|  concatS (INT data) (TUPLE []) = TUPLE [INT data]
-|  concatS (TUPLE t) (INT data) = TUPLE (t@[INT data])
-|  concatS (INT data) (TUPLE t) = TUPLE (t@[INT data])
-|  concatS (TUPLE t) (SET s) = SET (s@t) (* keeps semantics of union correct *)
-|  concatS (SET s) (TUPLE t) = SET (s@t)
-|  concatS (TUPLE t1) (TUPLE t2) = TUPLE (t1@t2)
-
 fun union (SET s1) (SET []) = SET s1
 |  union (SET []) (SET s2) = SET s2
-|  union (SET s1) (SET (h2::t2)) = union (if (List.exists (fn x => x=h2) s1) then (SET s1) else (concatS h2 (SET s1))) (SET t2)
+|  union (SET s1) (SET s2) = SET (s1@s2)
 
 local
   fun calculus (SET difference) (SET s1) (SET []) = SET difference
@@ -171,7 +178,7 @@ in
   |  inter (SET []) (SET s2) = SET []
   |  inter (SET s1) (SET s2) = bissectrice (SET []) (SET s1) (SET s2)
 end;
-(* end of set functions *)
+(* end of set manipulation functions *)
 
 (*  input values  *)
 val x0 = INT 8;
