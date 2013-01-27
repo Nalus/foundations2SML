@@ -34,8 +34,16 @@ in
   |  diff (SET []) (SET s2) = SET []
   |  diff (SET s1) (SET s2) = calculus (SET []) (SET s1) (SET s2)
 end;
-(*(if (List.exists (x => x) s2) then remove else ()); diff t1*)
-(*fun inter (SET (h1::t1)) (SET (h2::t2)) = SET [INT 2]*)
+
+local
+  fun bissectrice (SET section) (SET s1) (SET []) = SET section
+  |  bissectrice (SET section) (SET []) (SET s2) = SET section
+  |  bissectrice (SET section) (SET (h1::t1)) (SET s2) = bissectrice (if (List.exists (fn x => x=h1) s2) then (SET (h1::section)) else (SET section)) (SET t1) (SET s2)
+in
+  fun inter (SET s1) (SET []) = SET s1
+  |  inter (SET []) (SET s2) = SET []
+  |  inter (SET s1) (SET s2) = bissectrice (SET []) (SET s1) (SET s2)
+end;
 
 val x0 = INT 8;
 val x1 = SET [INT 1,INT 2,INT 3,INT 4,INT 5,INT 6,INT 7,x0];
@@ -44,5 +52,5 @@ val x3 = TUPLE [x2,x1];
 val x4 = union (SET [x3]) x2;
 val x5 = union (SET [TUPLE [INT 0, SET [INT 1, INT 2]]]) (SET [TUPLE [INT 3, SET [INT 4, INT 5]]]);
 val x5 = diff x4 (SET [x1]); 
-(*val x6 = inter x4 (SET [x1])*)
-printVal x5;
+val x6 = inter x4 (SET [x1]);
+printVal x6;

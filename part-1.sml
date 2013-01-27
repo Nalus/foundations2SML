@@ -18,8 +18,8 @@ local
     |  printS (TUPLE ((TUPLE h)::t)) = (print "("; printS (TUPLE h); print ")"; if(isLast t) then () else print ",";  printS (TUPLE t))
   end;
 in
-  fun printVal (INT i) = (print (Int.toString i); print "};\n")
-  |  printVal (SET s) = (print "{"; printS (SET s); print ";\n")
+  fun printVal (INT i) = (print (Int.toString i); print ";\n")
+  |  printVal (SET s) = (print "{"; printS (SET s); print "};\n")
   |  printVal (TUPLE tu) = (print "("; printS (TUPLE tu); print ");\n")
 end;
 
@@ -134,7 +134,7 @@ in
 end;
 (*end of tree constructor *)
 
-(* set functions U, ∩, \ *)
+(* SET MANIPULATION functions U, ∩, \ *)
 fun concatS (SET []) (INT data) = SET [INT data]
 |  concatS (INT data) (SET []) = SET [INT data]
 |  concatS (SET s) (INT data) = SET (s@[INT data])
@@ -152,8 +152,25 @@ fun union (SET s1) (SET []) = SET s1
 |  union (SET []) (SET s2) = SET s2
 |  union (SET s1) (SET (h2::t2)) = union (if (List.exists (fn x => x=h2) s1) then (SET s1) else (concatS h2 (SET s1))) (SET t2)
 
-fun diff (SET (h1::t1)) (SET (h2::t2)) = SET [INT 1]
-fun inter (SET (h1::t1)) (SET (h2::t2)) = SET [INT 2]
+local
+  fun calculus (SET difference) (SET s1) (SET []) = SET difference
+  |  calculus (SET difference) (SET []) (SET s2) = SET difference
+  |  calculus (SET difference) (SET (h1::t1)) (SET s2) = calculus (if (List.exists (fn x => x=h1) s2) then (SET difference) else (SET (h1::difference))) (SET t1) (SET s2)
+in
+  fun diff (SET s1) (SET []) = SET s1
+  |  diff (SET []) (SET s2) = SET []
+  |  diff (SET s1) (SET s2) = calculus (SET []) (SET s1) (SET s2)
+end;
+
+local
+  fun bissectrice (SET section) (SET s1) (SET []) = SET section
+  |  bissectrice (SET section) (SET []) (SET s2) = SET section
+  |  bissectrice (SET section) (SET (h1::t1)) (SET s2) = bissectrice (if (List.exists (fn x => x=h1) s2) then (SET (h1::section)) else (SET section)) (SET t1) (SET s2)
+in
+  fun inter (SET s1) (SET []) = SET s1
+  |  inter (SET []) (SET s2) = SET []
+  |  inter (SET s1) (SET s2) = bissectrice (SET []) (SET s1) (SET s2)
+end;
 (* end of set functions *)
 
 (*  input values  *)
@@ -165,9 +182,21 @@ val x4 = union (SET [x3]) x2;
 val x5 = diff x4 (SET [x1]);
 val x6 = inter x4 (SET [x1]);
 
-constructTree [x0,x1,x2,x3,x4,x5,x6];
+(* prints results via tree data structure, has different order of lines *)
+(*constructTree [x0,x1,x2,x3,x4,x5,x6];
 printPenek it;
-print "**********************END OF TREE PRINTING**********************\n";
-SET [x0,x1,x2,x3,x4,x5,x6];
+print "**********************END OF TREE PRINTING**********************\n";*)
+
+(* prints results via list data  structure, has the same order as input *)
+(*SET [x0,x1,x2,x3,x4,x5,x6];
 printList it;
-print "**********************END OF LIST PRINTING**********************\n";
+print "**********************END OF LIST PRINTING**********************\n";*)
+
+(* prints exact output needed for part 1 *)
+print "x"; print (Int.toString 0); print " = "; printVal x0;
+print "x"; print (Int.toString 1); print " = "; printVal x1;
+print "x"; print (Int.toString 2); print " = "; printVal x2;
+print "x"; print (Int.toString 3); print " = "; printVal x3;
+print "x"; print (Int.toString 4); print " = "; printVal x4;
+print "x"; print (Int.toString 5); print " = "; printVal x5;
+print "x"; print (Int.toString 6); print " = "; printVal x6;
