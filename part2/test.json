@@ -1,0 +1,22 @@
+{
+  "statement-list": [
+    {
+      "operator": "equal",
+      "arguments": [
+        {
+          "variable": "x0"
+        },
+        1
+      ]
+    },
+    {
+      "operator": "equal",
+      "arguments": [
+        {
+          "variable": "x1"
+        },
+        2
+      ]
+    }
+  ]
+}

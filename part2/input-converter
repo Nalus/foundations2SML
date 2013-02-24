@@ -1,0 +1,764 @@
+#!/usr/bin/env smlnj-script
+;(*-*-SML-*-*)
+
+(* *************************)
+(*** support for debugging *)
+(* *************************)
+
+(* Yes, the semicolons are sometimes really needed after some SML-TES
+ * magic comments!  Arrgh! *)
+(**SML-TES-USE-FILE /home/jbw/smlnj-script-git/smlnj-script/smlnj-script.sml *);
+(**SML-TES-QUASIQUOTES true *)
+
+(* Uncomment the next line when your script is finally completely
+ * working. *)
+val () = silenceCompiler ();
+
+val () = U.raisePrintingLimitsToMax ();
+
+(* for debugging only: *)
+val ()
+  = U.traceTags [
+    (*
+    "debug-parse-statement",
+    "debug-parse-expression",
+    "debug-parse-whitespace"
+    *)
+    ];
+
+(* *************)
+(*** Utilities *)
+(* *************)
+
+(* *** move all this stuff to a library *)
+
+(* Can't use IntInf.toString directly because it uses SML notation for
+   negative numbers (prefixing with a tilde instead of a minus sign).
+   Can't use Format or FormatComb because neither handle
+   IntInf.int. *)
+(* *** rename to intInfToStandardString *)
+fun intInfToString i =
+    if (IntInf.sign i = ~1)
+    then "-" ^ IntInf.toString (IntInf.abs i)
+    else IntInf.toString i;
+
+(* Convert the type “order” to “bool”. *)
+fun isGreater GREATER = true
+  | isGreater _ = false
+
+(* *************************************************************)
+(*** Trees for the simple language of math expressions (SLOME) *)
+(* *************************************************************)
+
+datatype operator = OP_SET | OP_TUPLE | OP_DOMAIN | OP_RANGE
+  | OP_EQUAL | OP_MEMBER | OP_IS_FUNCTION | OP_APPLY_FUNCTION | OP_NTH
+  | OP_UNION | OP_INTERSECTION | OP_SET_DIFFERENCE;
+
+val _ = U.makeParseEvalAndFormat ("operator", "Operator"); (* used when debugging *)
+(**SML-TES-SPEC val formatOperator : operator -> string *);
+(**SML-TES-SPEC val parseEvalOperator : string -> operator option *);
+
+fun operatorToName OP_SET            = "set"
+  | operatorToName OP_TUPLE          = "tuple"
+  | operatorToName OP_DOMAIN         = "domain"
+  | operatorToName OP_RANGE          = "range"
+  | operatorToName OP_EQUAL          = "equal"
+  | operatorToName OP_MEMBER         = "member"
+  | operatorToName OP_IS_FUNCTION    = "is-function"
+  | operatorToName OP_APPLY_FUNCTION = "apply-function"
+  | operatorToName OP_NTH            = "nth"
+  | operatorToName OP_UNION          = "union"
+  | operatorToName OP_INTERSECTION   = "intersection"
+  | operatorToName OP_SET_DIFFERENCE = "set-difference";
+
+fun nameToOperator "set"            = OP_SET
+  | nameToOperator "tuple"          = OP_TUPLE
+  | nameToOperator "domain"         = OP_DOMAIN
+  | nameToOperator "range"          = OP_RANGE
+  | nameToOperator "equal"          = OP_EQUAL
+  | nameToOperator "member"         = OP_MEMBER
+  | nameToOperator "is-function"    = OP_IS_FUNCTION
+  | nameToOperator "apply-function" = OP_APPLY_FUNCTION
+  | nameToOperator "nth"            = OP_NTH
+  | nameToOperator "union"          = OP_UNION
+  | nameToOperator "intersection"   = OP_INTERSECTION
+  | nameToOperator "set-difference" = OP_SET_DIFFERENCE
+  | nameToOperator n = raise (Fail (q`illegal operator name: [^n]`));
+
+fun operatorPrecedence OP_EQUAL          = SOME 1
+  | operatorPrecedence OP_MEMBER         = SOME 2
+  | operatorPrecedence OP_APPLY_FUNCTION = SOME 6
+  | operatorPrecedence OP_UNION          = SOME 3
+  | operatorPrecedence OP_INTERSECTION   = SOME 4
+  | operatorPrecedence OP_SET_DIFFERENCE = SOME 5
+  | operatorPrecedence _                 = NONE;
+
+val precedenceAboveHighest = 7;
+
+fun precedenceRightAssociative 1 = true
+  | precedenceRightAssociative _ = false;
+
+(*
+(* don't need this yet *)
+fun operatorId OP_SET            =  0
+  | operatorId OP_TUPLE          =  1
+  | operatorId OP_DOMAIN         =  2
+  | operatorId OP_RANGE          =  3
+  | operatorId OP_EQUAL          =  4
+  | operatorId OP_MEMBER         =  5
+  | operatorId OP_IS_FUNCTION    =  6
+  | operatorId OP_APPLY_FUNCTION =  7
+  | operatorId OP_NTH            =  8
+  | operatorId OP_UNION          =  9
+  | operatorId OP_INTERSECTION   = 10
+  | operatorId OP_SET_DIFFERENCE = 11;
+*)
+
+fun operatorToSymbol OP_DOMAIN          = SOME "dom"
+  | operatorToSymbol OP_RANGE           = SOME "ran"
+  | operatorToSymbol OP_EQUAL           = SOME "="
+  | operatorToSymbol OP_MEMBER          = SOME "∈"
+  | operatorToSymbol OP_IS_FUNCTION     = SOME "is-function"
+  | operatorToSymbol OP_NTH             = SOME "nth"
+  | operatorToSymbol OP_UNION           = SOME "∪"
+  | operatorToSymbol OP_INTERSECTION    = SOME "∩"
+  | operatorToSymbol OP_SET_DIFFERENCE  = SOME "∖"
+  | operatorToSymbol _                  = NONE;
+
+datatype expression = EXP_INT of IntInf.int
+                    | EXP_VAR of string
+                    | EXP_OP of operator * expression list
+                    (* We do not allow EXP_UNDEF in arbitrary
+                     * positions inside operations, but we will
+                     * enforce that separately. *)
+                    | EXP_UNDEF;
+
+(*
+fun foldExpression {intFn, ...} (EXP_INT i) = intFn i
+  | foldExpression {varFn, ...} (EXP_VAR v) = varFn v
+  | foldExpression (fns as {opFn, ...}) (EXP_OP (oper, exps))
+    = opFn (oper, map (foldExpression fns) exps)
+  | foldExpression {undefFn, ...} EXP_UNDEF = undefFn ();
+*)
+
+(* *** Implement function to check this: The variable names are of a
+ * restricted form where the variables are x0, x1, x2, and so on.  In
+ * this restricted form, variable names begin with the letter x which
+ * is followed by a decimal number which has a leading 0 only if the
+ * entire number is 0. *)
+
+(* *** Implement function to check this: The more flexible variable
+ * names begin with a letter (categories LC, Ll, Lm, Lo, Lt, Lu)
+ * followed by letters and digits (category Nd). *)
+
+fun printExpression print
+
+  = let fun printList (_, [], _) = raise (Fail "impossible empty expression list asdiou9017")
+          | printList (left, [exp], right)
+            = (print left; printExp exp; print right)
+          | printList (left, exp :: exps, right)
+            = (print left; printExp exp; printList (", ", exps, right))
+
+        and printWithParensIfLowerPrecedence oper1 isLeft (exp as (EXP_INT _ | EXP_VAR _ | EXP_UNDEF))
+            = printExp exp
+          | printWithParensIfLowerPrecedence oper1 isLeft (exp as EXP_OP (oper2, _))
+            = if case (operatorPrecedence oper1, operatorPrecedence oper2)
+                  of (NONE, _) => raise (Fail "should never happen jaflj238979fd")
+                   | (SOME _, NONE) => false
+                   | (SOME p1, SOME p2)
+                     => (if (if (precedenceRightAssociative p1)
+                             then not isLeft
+                             else isLeft)
+                         then op >
+                         else op >=)
+                            (* *** Might have these reversed, must check: *)
+                            (p1, p2)
+              then (print "("; printExp exp; print ")")
+              else printExp exp
+
+        and printExp (EXP_INT i) = print (intInfToString i)
+          | printExp (EXP_VAR v) = print v
+          | printExp (EXP_OP (oper, exps))
+            = (case (oper, exps)
+                of (OP_SET, _) => printList ("{", exps, "}")
+                 | (OP_TUPLE, [_]) => raise (Fail "tuples can not be length 1")
+                 | (OP_TUPLE, _) => printList ("(", exps, ")")
+                 | (((OP_DOMAIN | OP_RANGE | OP_IS_FUNCTION), [_]) | (OP_NTH, [_,_]))
+                   => (print (valOf (operatorToSymbol oper)); printList ("(", exps, ")"))
+                 | ((OP_EQUAL | OP_MEMBER | OP_UNION | OP_INTERSECTION | OP_SET_DIFFERENCE | OP_APPLY_FUNCTION), [left, right])
+                   => (printWithParensIfLowerPrecedence oper true left;
+                       print " ";
+                       case operatorToSymbol oper
+                        of NONE => ()
+                         | SOME s => (print s; print " ");
+                       printWithParensIfLowerPrecedence oper false right)
+                 | _ => raise (Fail "this should never happen afds82307"))
+          | printExp EXP_UNDEF = print "undefined!";
+
+    in printExp
+    end;
+
+fun expressionIsValid _ (EXP_INT i) = true
+  | expressionIsValid _ (EXP_VAR v)
+    (* *** Should check for valid variable name. *)
+    = true
+  | expressionIsValid _ (EXP_OP (oper, exps))
+    = foldr (fn (exp, result) => result andalso expressionIsValid false exp) true exps
+      andalso
+      (case (oper, exps)
+       of (* any number of subexpressions: *)
+          ((OP_SET | OP_TUPLE), _) => true
+        | (* must have exactly 1 subexpression: *)
+          ((OP_DOMAIN | OP_RANGE | OP_IS_FUNCTION), [_]) => true
+        | (* must have exactly 2 subexpressions: *)
+          ((OP_EQUAL | OP_MEMBER | OP_UNION | OP_INTERSECTION | OP_SET_DIFFERENCE | OP_APPLY_FUNCTION | OP_NTH),
+           [_,_])
+          => true
+        | (* anything else is invalid/illegal: *)
+          _ => false)
+  | expressionIsValid topLevelUndefOkay EXP_UNDEF = topLevelUndefOkay;
+
+fun expressionIsValidAsStatement (EXP_OP (OP_EQUAL, [EXP_VAR _, exp]))
+    (* *** Should check for valid variable name. *)
+    (* We allow the right side of an equality expression used as a
+     * statement to be EXP_UNDEF.  This is only allowed at the top level, so
+     * there can not be any EXP_UNDEF deep inside the tree. *)
+    = expressionIsValid true exp
+  | expressionIsValidAsStatement _ = false;
+
+fun assertExpressionIsValidAsStatement stat
+  = if expressionIsValidAsStatement stat
+    then ()
+    else raise (Fail "expression is not a statement");
+
+fun assertExpressionListIsStatementList stats
+  = List.app assertExpressionIsValidAsStatement stats;
+
+fun printStatementList print stats
+  = (assertExpressionListIsStatementList;
+     List.app (fn s => (printExpression print s; print ";\n"))
+              stats)
+
+(* *******************************************)
+(*** Converting between SLOME and SML syntax *)
+(* *******************************************)
+
+(* The functions formatExpressionList and parseEvalExpressionList are
+ * used for serializing the input into the equivalent SML syntax
+ * format and then reading that format. *)
+val _ = U.makeParseEvalAndFormat ("expression list", "ExpressionList");
+(**SML-TES-SPEC val formatExpressionList : expression list -> string *);
+(**SML-TES-SPEC val parseEvalExpressionList : string -> expression list option *);
+
+(* *********************************)
+(*** utility functions for parsing *)
+(* *********************************)
+
+(* *** rename to wchar *)
+type strm_char = UTF8.wchar;
+
+(* *** make an overloaded operator that (1) converts char to wchar and
+   (2) string to wchar by reading a string containing the UTF-8
+   encoding of exactly one character and throwing an exception
+   otherwise. *)
+
+val u = UTF8.fromAscii;
+
+(* *** Use my more correct version of getu instead of this: *)
+val getu = UTF8.getu
+
+structure P = U.GenParserComb;
+
+(* *** move to smlnj-script.sml *)
+(* *** rename parseEndOfLineOrStream *)
+(* *** rename P.eof to P.endOfStream *)
+val parseEndOfLineOrFile : (strm_char, unit, 'strm) P.parser =
+    (fn eta =>
+        P.or (P.trace ["debug-comments"] "parse-newline-eof-newline" (fn () => "newline")
+                      (P.discard (P.char (u #"\n"))),
+              P.trace ["debug-comments"] "parse-newline-eof-eof" (fn () => "end-of-file")
+                      (P.eof ()))
+             eta);
+
+fun parseKeyword (keyword, result) : (strm_char, 'a, 'strm) P.parser =
+    P.matchStream (op =) result
+                  (getu Substring.getc)
+                  (Substring.full keyword);
+
+fun parseStringContaining pred : (strm_char, string, 'strm) P.parser
+  = P.wrap' U.utf8WcharListToString (P.zeroOrMore (P.eatChar pred));
+
+fun parseNonEmptyStringContaining pred : (strm_char, string, 'strm) P.parser
+  = P.validate
+        (fn "" => NONE | s => SOME s)
+        (parseStringContaining pred);
+
+(*******************************************)
+(* Parsing arbitrary size decimal integers *)
+(*******************************************)
+
+structure P = U.GenParserComb;
+type strm_char = UTF8.wchar; (* to make it easy to switch character encoding *)
+
+val u = UTF8.fromAscii;
+
+fun digitChar c =
+    (* *** maybe should handle other Unicode decimal digits??? *)
+    UTF8.isAscii c
+    andalso Char.contains "0123456789" (UTF8.toAscii c);
+
+val parseNaturalNumber : (strm_char, IntInf.int, 'strm) P.parser =
+    (* We can't use (IntInf.scan StringCvt.DEC) directly on the input
+     * stream because (1) that expects a char stream and (2) that will
+     * accept some character sequences containing non-digits (like the
+     * ones for negative integers).  (Even for integers we can't use
+     * it because it uses SML's insane tilde syntax for negative
+     * numbers.)  So first we find all the digits and then convert.
+     *
+     * *** Hmmm.  It might be simpler to just change the first
+     * character from a - into a ~ and then invoke IntInf.scan.  Oh
+     * well, it already works this way so maybe try that later.
+     *)
+    (fn eta => P.wrap'
+                   (valOf o IntInf.fromString)
+                   (parseNonEmptyStringContaining digitChar)
+                   eta);
+
+val parseInteger : (strm_char, IntInf.int, 'strm) P.parser =
+    (fn eta => P.or (P.wrap' (fn (_, i) => IntInf.~ i)
+                             (P.seq (P.char (u #"-"), parseNaturalNumber)),
+                     parseNaturalNumber)
+                    eta);
+
+(* *** move to library: *)
+fun parseEntireStringOrFail parser string
+  = case P.parseString parser string of
+        NONE => raise (Fail ("Failed to parse even a prefix of string: " ^ string))
+      | SOME (result, "") => result
+      | SOME (result, unusedPortion) => raise (Fail (q`Failed to use up entire string in parsing, input: [^string], unused portion: [^unusedPortion]`));
+
+fun stringToIntInf intInfString = parseEntireStringOrFail (parseInteger o getu) intInfString;
+
+(* ***********************************************************)
+(*** A SLOME parser (to convert serialized strings to trees) *)
+(* ***********************************************************)
+
+(* *** I haven't worked out yet how best to check Unicode character
+ * categories in SML.  No one seems to have implemented support for it
+ * in SML.  The closest is some code in FXP.  I thought that maybe the
+ * LMLML library (from Japan) would do it but they skipped that part.
+ * I guess Japanese don't really care so much about whether a
+ * character is upper or lower case.  ☺ :-)  Probably my best bet is to
+ * call a C library that implements it.  Meanwhile, I am liberally
+ * allowing any non-ASCII characters in variable names, as though they
+ * were letters, except for those that have syntactic significance for
+ * our input language. *)
+fun isForbiddenNonAscii c
+  = let val cStr = UTF8.encode c
+    in List.exists (fn x => x = cStr) ["∈", "∪", "∩", "∖"] end;
+
+fun isAlpha c
+  = if (UTF8.isAscii c)
+    then Char.isAlpha (UTF8.toAscii c)
+    else not (isForbiddenNonAscii c)
+
+fun isAlphaNum c
+  = if (UTF8.isAscii c)
+    then Char.isAlphaNum (UTF8.toAscii c)
+    else not (isForbiddenNonAscii c)
+
+(* *** move to smlnj-script.sml *)
+(* *** Properly speaking, we should detect all Unicode whitespace
+   characters? *)
+(* *** rename? *)
+fun isWhitespace c = UTF8.isAscii c andalso Char.contains " \t\r\n" (UTF8.toAscii c);
+
+fun variableChar c =
+    if (UTF8.isAscii c)
+    then Char.contains " \t\n\r:=;0123456789?-\"@(,)" (UTF8.toAscii c)
+    else let val cStr = UTF8.encode c
+         in not (List.exists (fn x => x = cStr) ["∈", "∪", "∩", "∖"]) end;
+
+val parseComment : (strm_char, unit, 'strm) P.parser =
+    (fn eta => P.discard (P.seq3 (P.char (u #"#"),
+                                  P.zeroOrMore (P.eatChar (fn c => not (c = (u #"\n")))),
+                                  parseEndOfLineOrFile))
+                         eta);
+
+val parseWhitespaceOrComment : (strm_char, unit, 'strm) P.parser =
+    (fn eta => P.or (P.discard (P.eatChar isWhitespace),
+                     parseComment)
+                    eta);
+
+val parseVariable : (strm_char, string, 'strm) P.parser =
+    (fn eta
+        => P.trace
+               ["debug-parsing-variables"] "parse-variable" (fn s => s)
+               (P.validate
+                    (* verify not keyword *)
+                    (fn ("dom" | "ran" | "nth" | "in" | "union" |
+                         "intersect") => NONE
+                      | s => SOME s)
+                    (P.wrap'
+                         (U.utf8WcharListToString
+                          o (fn (h,t,_) => h :: t))
+                         (P.seq3
+                              (P.eatChar isAlpha,
+                               P.zeroOrMore (P.eatChar isAlphaNum),
+                               (* Fail immediately if followed by
+                                * certain characters, to avoid
+                                * accidentally seeing “set” or “is” or
+                                * “undefined” as a variable instead of
+                                * the first parts of the operators
+                                * “set-minus” or “is-function” or the
+                                * special token “undefined!”. *)
+                               P.lookAhead
+                                   (P.eatChar
+                                        (fn c =>
+                                            not (c = u #"-" orelse c = u #"!")))))))
+               eta);
+
+fun allowWhitespace p
+  = P.trace ["debug-parse-whitespace"] "allow-whitespace" (fn _ => "")
+            (P.wrap'
+                 (# 2)
+                 (P.seq
+                      (P.zeroOrMore parseWhitespaceOrComment,
+                       p)));
+
+fun handlePrecedenceAndAssociativity (exp, []) = exp
+  | handlePrecedenceAndAssociativity (exp, opExpList)
+    = let fun split (left, right, lowest, [])
+              = (case (rev right)
+                  of (oper, exp2) :: rest
+                     => EXP_OP (oper, [handlePrecedenceAndAssociativity (exp, left),
+                                       handlePrecedenceAndAssociativity (exp2, rest)])
+                   | _ => raise (Fail "impossible 81490dfa8709"))
+            | split (left, right, lowest, (oper, exp2) :: rest)
+              = let val SOME prec = operatorPrecedence oper
+                in if prec < lowest
+                      orelse (prec = lowest
+                              andalso not (precedenceRightAssociative prec))
+                   then split (left @ (rev right), [(oper, exp2)], prec, rest)
+                   else split (left, (oper, exp2) :: right, lowest, rest)
+                end
+      in split ([], [], precedenceAboveHighest, opExpList)
+      end;
+
+fun parseTightExpression (reader : (strm_char, 'strm) U.reader) : (expression, 'strm) U.reader
+  = P.trace
+        ["debug-parse-expression"] "parse-tight-expression-entry" (fn _ => "")
+        (allowWhitespace
+             (P.trace
+                  ["debug-parse-expression"] "parse-tight-expression-around-or" (fn _ => "")
+                  (P.or' [P.trace ["debug-parse-expression"] "parse-exp-int" (fn x => "")
+                                  (P.wrap' EXP_INT parseInteger),
+                          P.trace ["debug-parse-expression"] "parse-exp-undef" (fn x => "")
+                                  (parseKeyword ("undefined!", EXP_UNDEF)),
+                          P.trace ["debug-parse-expression"] "parse-exp-var" (fn x => "")
+                                  (P.wrap' EXP_VAR parseVariable),
+                          P.trace
+                              ["debug-parse-expression"] "parse-exp-prefix-operator" (fn x => "")
+                              (P.bind
+                                   (P.or' [parseKeyword ("dom", OP_DOMAIN),
+                                           parseKeyword ("ran", OP_RANGE),
+                                           parseKeyword ("is-function", OP_IS_FUNCTION),
+                                           parseKeyword ("nth", OP_NTH)],
+                                    (fn oper => (parseBracketedStuff (SOME oper))))),
+                          P.trace ["debug-parse-expression"] "parse-exp-set-tuple-parens" (fn x => "")
+                                  (parseBracketedStuff NONE)])))
+        reader
+
+and parseBracketedStuff maybeOp : (strm_char, expression, 'strm) P.parser
+  = P.trace
+        ["debug-parse-expression"] "parse-bracketed-stuff" (fn _ => "")
+        (P.bind
+             (P.wrap'
+                  (fn c => c = u #"(")
+                  (allowWhitespace
+                       (P.eatChar (fn c =>
+                                      c = u #"("
+                                      orelse (not (isSome maybeOp)
+                                              andalso c = u #"{")))),
+              (fn isParens
+                  => P.validate
+                         (fn (e1, xs, _)
+                             => let val exps = e1 :: # 2 (ListPair.unzip xs)
+                                in case (maybeOp, isParens, length exps)
+                                    of (SOME (oper as (OP_DOMAIN | OP_RANGE | OP_IS_FUNCTION)), true, 1)
+                                       => SOME (EXP_OP (oper, exps))
+                                     | (SOME OP_NTH, true, 2) => SOME (EXP_OP (OP_NTH, exps))
+                                     | (NONE, true, 1) => SOME (hd exps)
+                                     | (NONE, true, _) => SOME (EXP_OP (OP_TUPLE, exps))
+                                     | (NONE, false, _) => SOME (EXP_OP (OP_SET, exps))
+                                     | _ => NONE (* illegal syntax *)
+                                end)
+                         (P.seq3
+                              (parseLooseExpression,
+                               P.zeroOrMore
+                                   (P.seq (allowWhitespace (P.char (u #",")),
+                                           parseLooseExpression)),
+                               allowWhitespace
+                                   (P.eatChar (fn c => c = (if isParens then u #")" else u #"}"))))))))
+
+and parseLooseExpression (reader : (strm_char, 'strm) U.reader) : (expression, 'strm) U.reader
+  = P.wrap'
+        handlePrecedenceAndAssociativity
+        (P.trace
+             ["debug-parse-expression"] "parse-loose-expression" (fn _ => "")
+             (P.seq
+                  (parseTightExpression,
+                   P.zeroOrMore
+                       (P.seq
+                            (allowWhitespace
+                                 (P.or' [parseKeyword ("=", OP_EQUAL),
+                                         parseKeyword ("∈", OP_MEMBER),
+                                         parseKeyword ("in", OP_MEMBER),
+                                         parseKeyword ("∪", OP_UNION),
+                                         parseKeyword ("union", OP_UNION),
+                                         parseKeyword ("∩", OP_INTERSECTION),
+                                         parseKeyword ("intersect", OP_INTERSECTION),
+                                         parseKeyword ("∖", OP_SET_DIFFERENCE),
+                                         parseKeyword ("\\", OP_SET_DIFFERENCE),
+                                         parseKeyword ("set-minus", OP_SET_DIFFERENCE)]),
+                             parseTightExpression)))))
+        reader;
+
+(* put types into nice form, get better type errors *)
+val parseTightExpression : (strm_char, expression, 'strm) P.parser = parseTightExpression;
+val parseLooseExpression : (strm_char, expression, 'strm) P.parser = parseLooseExpression;
+
+fun statementChar c = (U.tracePrint (["debug-parse-statement"], fn () => qq`statementChar: [^(UTF8.encode c)]\n`);
+                       not (c = u #";"));
+
+datatype statement = ST_GOOD of expression | ST_BAD of string | ST_TRAILING_SPACE;
+
+val parseStatement : (strm_char, statement, 'strm) P.parser
+  = (fn eta
+        => P.join
+               (P.or'
+                    [P.trace
+                         ["debug-parse-statement"] "parse-statement-good" (fn _ => "")
+                         (P.validate
+                              (fn (exp,_) => if expressionIsValidAsStatement exp
+                                             then SOME (SOME (ST_GOOD exp))
+                                             else NONE)
+                              (P.trace
+                                   ["debug-parse-statement"] "parse-statement-good-pre-validate" (fn _ => "")
+                                   (P.seq (parseLooseExpression,
+                                           allowWhitespace (P.char (u #";")))))),
+                     P.eof NONE,
+                     P.trace
+                         ["debug-parse-statement"] "parse-statement-bad-or-trailing-space"
+                         (fn SOME (ST_BAD s) => q`[^s]`
+                           | SOME ST_TRAILING_SPACE => "trailing whitespace"
+                           | _ => raise (Fail "impossible fdas90fsd0724"))
+                         (allowWhitespace
+                              (P.validate
+                                   (fn (nil, true) => SOME (SOME ST_TRAILING_SPACE) (* at valid end of file *)
+                                     | (matchedChars, _)
+                                       => SOME (SOME (ST_BAD (U.utf8WcharListToString matchedChars))))
+                                   (P.seq (P.zeroOrMore (P.eatChar statementChar),
+                                           P.or (P.wrap' (fn _ => false) (P.char (u #";")),
+                                                 P.eof true)))))])
+               eta);
+
+val parseStatementList : (strm_char, statement list, 'strm) P.parser =
+    (fn eta => P.zeroOrMore parseStatement eta);
+
+(* *********************************)
+(*** Simplifying SLOME expressions *)
+(* *********************************)
+
+structure SS = U.StringSet;
+
+val namesUsed = ref SS.empty;
+fun noticeName name = namesUsed := SS.add (! namesUsed, name);
+fun freshName base
+  = let fun fresh count
+          = let val candidate = base ^ Int.toString count
+            in if SS.member (! namesUsed, candidate)
+               then fresh (count + 1)
+               else (noticeName candidate; candidate)
+            end
+    in fresh 0
+    end;
+
+fun noticeNamesInExpression (EXP_OP (_, exps)) = noticeNamesInExpressionList exps
+  | noticeNamesInExpression (EXP_VAR v) = noticeName v
+  | noticeNamesInExpression _ = ()
+
+and noticeNamesInExpressionList exps = app noticeNamesInExpression exps;
+
+fun simplifyExpression base (EXP_OP (oper, exps))
+    = let val (statementLists, simplifiedExpressions) = ListPair.unzip (map (simplifyExpression base) exps)
+          val (simplifiedExpressionStatementLists, newExpressions)
+            = ListPair.unzip
+                  (map (fn exp as EXP_OP _
+                           => let val var = EXP_VAR (freshName base)
+                              in ([EXP_OP (OP_EQUAL, [var, exp])], var) end
+                         | exp => ([], exp))
+                       simplifiedExpressions)
+          val statementList = List.concat (statementLists @ simplifiedExpressionStatementLists)
+      in (statementList, EXP_OP (oper, newExpressions)) end
+  | simplifyExpression _ e = ([], e);
+
+fun simplifyStatement (EXP_OP (OP_EQUAL, [EXP_VAR v, exp]))
+    = let val SOME (baseName, _) = P.parseString (P.wrap' U.utf8WcharListToString (P.oneOrMore (P.eatChar isAlpha)) o getu) v
+          val (statementList, simplifiedExpression) = simplifyExpression baseName exp
+      in statementList @ [EXP_OP (OP_EQUAL, [EXP_VAR v, simplifiedExpression])]
+      end
+  | simplifyStatement _ = raise (Fail "impossible 349870fasd09");
+
+fun simplifyStatementList stats
+  = (noticeNamesInExpressionList stats;
+     List.concat (map simplifyStatement stats));
+
+(* ******************************************)
+(*** Converting between SLOME and XML trees *)
+(* ******************************************)
+
+structure X = XML;
+
+(* *** move this function to a library?: *)
+fun xmlElement name children = X.Elem ((name, nil), children);
+
+fun expressionToXml (EXP_INT i)
+    = xmlElement "integer" [X.Text (intInfToString i)]
+  | expressionToXml (EXP_VAR v)
+    = xmlElement "variable" [X.Text v]
+  | expressionToXml (EXP_OP (oper, exps))
+    = xmlElement (operatorToName oper)
+                 (map expressionToXml exps)
+  | expressionToXml EXP_UNDEF
+    = xmlElement "undefined" [];
+
+fun statementListToXml stats
+  = (assertExpressionListIsStatementList stats;
+     xmlElement "statement-list" (map expressionToXml stats));
+
+fun xmlToExpression (X.Elem (("integer", nil), [X.Text i]))
+    = EXP_INT (stringToIntInf i)
+  | xmlToExpression (X.Elem (("variable", nil), [X.Text v]))
+    (* *** should validate the variable is legal *)
+    = EXP_VAR v
+  | xmlToExpression (X.Elem ((operName, nil), children))
+    = EXP_OP (nameToOperator operName, map xmlToExpression children)
+  | xmlToExpression _
+    = raise (Fail "illegal XML that does not represent a math expression");
+
+fun xmlToStatementList (X.Elem (("statement-list", nil), children))
+    = let val stats = map xmlToExpression children
+      in assertExpressionListIsStatementList stats;
+         stats end
+  | xmlToStatementList _ = raise (Fail "illegal list of statements");
+
+(* *******************************************)
+(*** Converting between SLOME and JSON trees *)
+(* *******************************************)
+
+structure J = JSON;
+
+(* *** The parser and printer in JSON.Parser.parse and
+ * JSON.Printer.print make no attempt to ensure that lists of
+ * field/value pairs in objects do not repeat field names.  We should
+ * probably check for this on input. *)
+
+fun expressionToJson (EXP_INT i)
+    = J.INT i
+  | expressionToJson (EXP_VAR v)
+    = J.OBJECT [("variable", J.STRING v)]
+  | expressionToJson (EXP_OP (oper, exps))
+    = J.OBJECT [("operator", J.STRING (operatorToName oper)),
+                ("arguments", J.ARRAY (map expressionToJson exps))]
+  | expressionToJson EXP_UNDEF
+    = J.NULL;
+
+fun statementListToJson stats
+  = (assertExpressionListIsStatementList stats;
+     J.OBJECT [("statement-list", J.ARRAY (map expressionToJson stats))]);
+
+(* We can't rely on the fields being in any particular order or on the
+ * field names not being repeated, so we check this explicitly
+ * here. *)
+fun jsonToExpression (J.INT i) = EXP_INT i
+  | jsonToExpression (J.OBJECT [("variable", J.STRING v)]) = EXP_VAR v
+  | jsonToExpression (J.OBJECT ([("operator", J.STRING operName),
+                                 ("arguments", J.ARRAY args)]
+                                | [("arguments", J.ARRAY args),
+                                   ("operator", J.STRING operName)]))
+    = EXP_OP (nameToOperator operName, map jsonToExpression args)
+  | jsonToExpression _
+    = raise (Fail "illegal JSON that does not represent a math expression");
+
+fun jsonToStatementList (J.OBJECT [("statement-list", J.ARRAY children)])
+    = let val stats = map jsonToExpression children
+      in assertExpressionListIsStatementList stats;
+         stats end
+  | jsonToStatementList _ = raise (Fail "illegal list of statements");
+
+(* *******************)
+(*** the actual work *)
+(* *******************)
+
+fun writeAllFormats (fileNameBase, statements)
+  = (U.writeEntireFile
+         (fileNameBase ^ ".xml",
+          XML.tostring (statementListToXml statements));
+     U.writeEntireFile
+         (fileNameBase ^ ".json",
+          # string
+            (U.OutputToString.withStringOutputStream
+                 (fn strm =>
+                     JSONPrinter.print
+                         (strm,
+                          statementListToJson statements))));
+     U.writeEntireFile
+         (fileNameBase ^ ".sml",
+          formatExpressionList statements);
+     U.unwindProtect
+         (fn f =>
+             let fun print s = TextIO.output (f, s)
+             in printStatementList print statements
+             end)
+         (fn (f, _)  => TextIO.closeOut f)
+         (TextIO.openOut (fileNameBase ^ ".txt")));
+
+val mathText = U.readEntireFile "original-input.txt";
+
+val (SOME (statements, remainingInput))
+  = P.parseString (parseStatementList o getu) mathText;
+
+(* (* for debugging *)
+val parsingResult (* (SOME (statement, remainingInput)) *)
+  = P.parseString (parseStatement o getu) mathText;
+*)
+
+(* This should always succeed: *)
+val "" = remainingInput;
+
+val badStatements = List.mapPartial (fn ST_BAD st => SOME st | _ => NONE) statements;
+
+val goodStatements
+  = if null badStatements
+    then List.mapPartial (fn ST_GOOD st => SOME st | _ => NONE) statements
+    else (app (fn stat =>
+                  U.printStdErr (qq`Invalid statement: [^stat]\n`))
+              badStatements;
+          U.exit OS.Process.failure);
+
+val simplifiedStatements = simplifyStatementList goodStatements;
+
+val () = writeAllFormats ("input", goodStatements);
+
+val () = writeAllFormats ("simple-input", simplifiedStatements)
+
+(*
+
+What follows is so that in Emacs M-x sml-run RET will try to run this
+program.
+
+Local variables:
+sml-program-name: "./input-converter"
+End:
+*)
