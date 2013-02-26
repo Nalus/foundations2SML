@@ -17,6 +17,52 @@
         },
         2
       ]
+    },
+    {
+      "operator": "equal",
+      "arguments": [
+        {
+          "variable": "x2"
+        },
+        {
+          "operator": "set",
+          "arguments": [
+            {
+              "variable": "x0"
+            },
+            {
+              "variable": "x1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "operator": "equal",
+      "arguments": [
+        {
+          "variable": "x3"
+        },
+        {
+          "operator": "set",
+          "arguments": [
+            {
+              "operator": "tuple",
+              "arguments": [
+                1,
+                2
+              ]
+            },
+            {
+              "operator": "tuple",
+              "arguments": [
+                3,
+                4
+              ]
+            }
+          ]
+        }
+      ]
     }
   ]
 }
