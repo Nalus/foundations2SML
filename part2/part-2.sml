@@ -59,8 +59,11 @@ exception Table
 
 fun getval(a,[]) = raise Table
   | getval(a,(a1,b1)::t) = if a=a1 then b1 else getval(a,t);
+fun update(a,b,[]) = SOME [(a,b)]
+  | update(a,b,(a1,b1)::t) = if a=a1 then SOME ((a,b)::t)
+                             else SOME ((a1,b1)::(Option.valOf(update(a,b,t))));
 fun insert(a,b,[]) = SOME [(a,b)]
-  | insert(a,b,(a1,b1)::t) = if a=a1 then NONE
+  | insert(a,b,(a1,b1)::t) = if a=a1 then (update(a,b,(a1,b1)::t))
                             else (case insert (a,b,t) of
                                  NONE => NONE
                                | SOME t1 => SOME((a1,b1)::t1));
@@ -138,8 +141,9 @@ let
     | expValue _ = raise (Fail "expValue exception");
 
   fun evaluator ([],SOME vars) = SOME vars
-    | evaluator ((EXP_OP (OP_EQUAL, [EXP_VAR name, arg]))::exp_tail,SOME vars)=evaluator (exp_tail,insert(name,(expValue (arg,vars)),vars))
-    | evaluator _ = raise (Fail "evaluator exception: ");
+    | evaluator ((EXP_OP (OP_EQUAL, [EXP_VAR name, arg]))::exp_tail,SOME vars)=(printf name;evaluator (exp_tail,insert(name,(expValue (arg,vars)),vars)))
+(*    | evaluator (h,SOME vars) = raise (Fail ("evaluator exception: " ^ (expToString (expValue (h,vars)))))*)
+    | evaluator _ = raise (Fail "evaluator exception");
 
 in evaluator (listok,(SOME ([]:table)))
 end;
