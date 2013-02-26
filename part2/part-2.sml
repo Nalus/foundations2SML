@@ -127,12 +127,12 @@ local
   (* return values for variables and integers *)
   fun numValue (EXP_INT i,vars) = EXP_INT i
     | numValue (EXP_VAR vv,vars) = getval (vv,vars)
-    | numValue _ = raise (Fail "numValue exception");
+    | numValue _ = (printf "BAD INPUT\n";raise (Fail "numValue exception"));
 
   (* determine whether element exists in set or tuple *)
   fun member (a, EXP_SET set) = List.exists (fn x => x=a) set
     | member (a, EXP_TUPLE tuple) = List.exists (fn x => x=a) tuple
-    | member _ = raise (Fail "member exception");
+    | member _ = (printf "BAD INPUT\n";raise (Fail "member exception"));
 
   (* start of mutually recursive declaration, very strong coupling *)
   (* finds list of values from a list, ie converts variables into values, also garbage collects *)
@@ -141,26 +141,29 @@ local
     | setValue (EXP_INT h::t,vars) = if (List.exists (fn x => x=(EXP_INT h)) t) then (setValue (t,vars)) else (numValue (EXP_INT h,vars))::(setValue (t,vars))
     | setValue (EXP_VAR h::t,vars) = if (List.exists (fn x => x=(EXP_VAR h)) t) then (setValue (t,vars)) else (numValue (EXP_VAR h,vars))::(setValue (t,vars))
     | setValue (EXP_OP h::t,vars) = if (List.exists (fn x => x=(EXP_OP h)) t) then (setValue (t,vars)) else (opValue (h,vars))::(setValue (t,vars))
-    | setValue _ = raise (Fail "setValue exception ")
+    | setValue _ = (printf "BAD INPUT\n";raise (Fail "setValue exception "))
 
   (* finds value of an EXP_OP tuple, OP_EQUAL is taken as equality check here *)
   and opValue ((OP_SET, set),vars) = EXP_SET (setValue (set,vars))
     | opValue ((OP_TUPLE, tuple),vars) = EXP_TUPLE (setValue (tuple,vars))
     | opValue ((OP_EQUAL, [a,b]),vars) = if (expValue (a,vars))=(expValue (b,vars)) then EXP_INT 1 else EXP_INT 0
     | opValue ((OP_MEMBER, [a,b]),vars) = if (member ((expValue (a,vars)),(expValue (b,vars)))) then EXP_INT 1 else EXP_INT 0
-    | opValue _ = raise (Fail "opValue exception")
+    | opValue _ = (printf "BAD INPUT\n";raise (Fail "opValue exception"))
 
   (* calculates value of expression arguments; singleton values are returned, operator expressions are passed to opValue *)
   and expValue (EXP_INT i,vars) = numValue (EXP_INT i,vars)
     | expValue (EXP_VAR vv,vars) = numValue (EXP_VAR vv,vars)
     | expValue (EXP_OP oper,vars) = opValue (oper,vars)
-    | expValue _ = raise (Fail "expValue exception");
+    | expValue _ = (printf "BAD INPUT\n";raise (Fail "expValue exception"));
   (* end of mutually recursive declaration *)
 
   (* goes through a list of expressions, performs assignation by storing variable name and its value in a table *)
-  (* return a table with key-value pairs *)
+  (* return a table with key-value pairs, prints each expression after its evaluation *)
   fun evaluator ([],SOME vars) = SOME vars
-    | evaluator ((EXP_OP (OP_EQUAL, [EXP_VAR name, arg]))::exp_tail,SOME vars)=evaluator (exp_tail,insert(name,(expValue (arg,vars)),vars))
+    | evaluator ((EXP_OP (OP_EQUAL, [EXP_VAR name, arg]))::exp_tail,SOME vars)=
+        let val ex = expValue (arg,vars) (* cuts the efficiency in half *)
+        in (toStream [(name,ex)];evaluator (exp_tail,insert(name,ex,vars)))
+        end
     | evaluator _ = raise (Fail "evaluator exception");
 in
   val hashMap = evaluator (listok,(SOME ([]:table)));
@@ -168,4 +171,4 @@ end;
 (* end of evaluation functions *)
 
 (* print the result to the default outfile *)
-toStream (Option.valOf(hashMap));
+(*toStream (Option.valOf(hashMap));*)
