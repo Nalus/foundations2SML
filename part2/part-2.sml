@@ -9,6 +9,7 @@ datatype expression = EXP_INT of IntInf.int
                     | EXP_TUPLE of expression list
                     | EXP_UNDEF;
 
+(* start of json parser functions taken from Joe Wells' input-converter script *)
 fun operatorToName OP_SET             = "set"
   | operatorToName OP_TUPLE          = "tuple"
   | operatorToName OP_DOMAIN         = "domain"
@@ -50,7 +51,9 @@ fun jsonToExpression (JSON.INT i) = EXP_INT i
 fun jsonToStatementList (JSON.OBJECT [("statement-list", JSON.ARRAY children)])
     = map jsonToExpression children
   | jsonToStatementList _ = raise (Fail "illegal list of statements");
+(* end of json parser functions taken from Joe Wells' input-converter script *)
 
+(* start of declaration of my storage table for expressions: type and functions *)
 type table = (string * expression) list
 exception Table
 
@@ -61,15 +64,17 @@ fun insert(a,b,[]) = SOME [(a,b)]
                             else (case insert (a,b,t) of
                                  NONE => NONE
                                | SOME t1 => SOME((a1,b1)::t1));
+(* end of declaration of my storage table for expressions: type and functions *)
 
-val default_input = "input.json";
-val json = JSONParser.parseFile default_input;
+(* start of initialisation of default input file and then parsing it *)
+val default_input = "input2.json";
+val listok = jsonToStatementList (JSONParser.parseFile default_input);
+(* end of initialisation of default input file and then parsing it *)
 
-val listok = jsonToStatementList json;
-
-
+(* start of initialisation of default output file and stream to it *)
 val default_output = "output.txt";
 val out = TextIO.openOut default_output;
+(* end of initialisation of default output file and stream to it *)
 
 (* printing function hardwired output stream to namespace "out" *)
 fun printf s = TextIO.output (out,s)
@@ -99,45 +104,45 @@ in
 end;
 (* end of PRINTING FUNCTION FROM PART-1 *)
 
-fun toFile [] = (TextIO.flushOut out)
-  | toFile ((s:string, e:expression)::tail) = (printf (s^"="); printVal (e); toFile tail);
+(* start of function prints to output stream *)
+fun toStream [] = (TextIO.flushOut out)
+  | toStream ((s:string, e:expression)::tail) = (printf (s^"="); printVal (e); toStream tail);
+(* end of function prints to output stream *)
 
-(* MY LET IS ∨∨∨ *)
 let
-(* MY LET IS ∧∧∧ *)
+  fun numValue (EXP_INT i,vars) = EXP_INT i
+    | numValue (EXP_VAR vv,vars) = getval (vv,vars)
+    | numValue _ = raise (Fail "numValue exception");
 
-fun numValue (EXP_INT i,vars) = EXP_INT i
-  | numValue (EXP_VAR vv,vars) = getval (vv,vars)
-  | numValue _ = raise (Fail "numValue exception");
+  fun member (EXP_INT i, EXP_SET []) = false
+    | member (EXP_INT i, EXP_TUPLE []) = false
+    | member (EXP_INT i, EXP_SET (EXP_INT h::t)) = if i=h then true else (member (EXP_INT i,EXP_SET t))
+    | member (EXP_INT i, EXP_TUPLE (EXP_INT h::t)) = if i=h then true else (member (EXP_INT i,EXP_TUPLE t))
+    | member _ = raise (Fail "member exception");
 
-fun member (EXP_INT i, EXP_SET []) = false
-  | member (EXP_INT i, EXP_TUPLE []) = false
-  | member (EXP_INT i, EXP_SET (EXP_INT h::t)) = if i=h then true else (member (EXP_INT i,EXP_SET t))
-  | member (EXP_INT i, EXP_TUPLE (EXP_INT h::t)) = if i=h then true else (member (EXP_INT i,EXP_TUPLE t))
-  | member _ = raise (Fail "member exception");
+  fun setValue ([],vars) = []
+    | setValue (EXP_INT h::t,vars) = (numValue (EXP_INT h,vars))::(setValue (t,vars))
+    | setValue (EXP_VAR h::t,vars) = (numValue (EXP_VAR h,vars))::(setValue (t,vars))
+    | setValue (EXP_OP  h::t,vars) = (opValue (h,vars))::(setValue (t,vars))
+    | setValue _ = raise (Fail "setValue exception ")
 
-fun setValue ([],vars) = []
-  | setValue (EXP_INT h::t,vars) = (numValue (EXP_INT h,vars))::(setValue (t,vars))
-  | setValue (EXP_VAR h::t,vars) = (numValue (EXP_VAR h,vars))::(setValue (t,vars))
-  | setValue (EXP_OP  h::t,vars) = (opValue (h,vars))::(setValue (t,vars))
-  | setValue _ = raise (Fail "setValue exception ")
+  and opValue ((OP_SET, set),vars) = EXP_SET (setValue (set,vars))
+    | opValue ((OP_TUPLE, tuple),vars) = EXP_TUPLE (setValue (tuple,vars))
+    | opValue ((OP_EQUAL, [a,b]),vars) = if (expValue (a,vars))=(expValue (b,vars)) then EXP_INT 1 else EXP_INT 0
+    | opValue ((OP_MEMBER, [a,b]),vars) = if (member ((expValue (a,vars)),(expValue (b,vars)))) then EXP_INT 1 else EXP_INT 0
+    | opValue _ = raise (Fail "opValue exception")
 
-and opValue ((OP_SET, set),vars) = EXP_SET (setValue (set,vars))
-  | opValue ((OP_TUPLE, tuple),vars) = EXP_TUPLE (setValue (tuple,vars))
-  | opValue ((OP_EQUAL, [a,b]),vars) = if (expValue (a,vars))=(expValue (b,vars)) then EXP_INT 1 else EXP_INT 0
-  | opValue ((OP_MEMBER, [a,b]),vars) = if (member ((expValue (a,vars)),(expValue (b,vars)))) then EXP_INT 1 else EXP_INT 0
-  | opValue _ = raise (Fail "opValue exception")
+  and expValue (EXP_INT i,vars) = numValue (EXP_INT i,vars)
+    | expValue (EXP_VAR vv,vars) = numValue (EXP_VAR vv,vars)
+    | expValue (EXP_OP oper,vars) = opValue (oper,vars)
+    | expValue _ = raise (Fail "expValue exception");
 
-and expValue (EXP_INT i,vars) = numValue (EXP_INT i,vars)
-  | expValue (EXP_VAR vv,vars) = numValue (EXP_VAR vv,vars)
-  | expValue (EXP_OP oper,vars) = opValue (oper,vars)
-  | expValue _ = raise (Fail "expValue exception");
-
-fun evaluator ([],SOME vars) = SOME vars
-  | evaluator ((EXP_OP (OP_EQUAL, [EXP_VAR name, arg]))::exp_tail,SOME vars)=evaluator (exp_tail,insert(name,(expValue (arg,vars)),vars))
-  | evaluator _ = raise (Fail "expression exception");
+  fun evaluator ([],SOME vars) = SOME vars
+    | evaluator ((EXP_OP (OP_EQUAL, [EXP_VAR name, arg]))::exp_tail,SOME vars)=evaluator (exp_tail,insert(name,(expValue (arg,vars)),vars))
+    | evaluator _ = raise (Fail "evaluator exception: ");
 
 in evaluator (listok,(SOME ([]:table)))
 end;
 
-toFile (Option.valOf(it));
+(* print the result to the default file *)
+toStream (Option.valOf(it));
