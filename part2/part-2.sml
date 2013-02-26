@@ -57,7 +57,7 @@ fun jsonToStatementList (JSON.OBJECT [("statement-list", JSON.ARRAY children)])
 type table = (string * expression) list
 exception Table
 
-fun getval(a,[]) = raise Table
+fun getval(a,[]) = EXP_VAR "undefined"
   | getval(a,(a1,b1)::t) = if a=a1 then b1 else getval(a,t);
 fun update(a,b,[]) = SOME [(a,b)]
   | update(a,b,(a1,b1)::t) = if a=a1 then SOME ((a,b)::t)
@@ -91,6 +91,7 @@ local
     fun printS (EXP_INT num) = printf (IntInf.toString num)
       | printS (EXP_SET []) = ()
       | printS (EXP_SET ((EXP_INT h)::t)) = (printS (EXP_INT h); if(isLast t) then () else printf ","; printS (EXP_SET t))
+      | printS (EXP_SET ((EXP_VAR "undefined")::t)) = printf "underfined"
       | printS (EXP_SET ((EXP_SET h)::t)) = (printf "{"; printS (EXP_SET h); printf "}"; if(isLast t) then () else printf ","; printS (EXP_SET t))
       | printS (EXP_SET ((EXP_TUPLE h)::t)) = (printf "("; printS (EXP_TUPLE h); printf ")"; if(isLast t) then () else printf ","; printS (EXP_SET t))
       | printS (EXP_TUPLE []) = ()
@@ -101,6 +102,7 @@ local
   end;
 in
   fun printVal (EXP_INT i) = (printf (IntInf.toString i); printf ";\n")
+    | printVal (EXP_VAR "undefined") = printf "undefined;\n"
     | printVal (EXP_SET s) = (printf "{";  printS (EXP_SET s); printf "};\n")
     | printVal (EXP_TUPLE tu) = (printf "("; printS (EXP_TUPLE tu); printf ");\n")
     | printVal _ = raise (Fail "printVal exception")
