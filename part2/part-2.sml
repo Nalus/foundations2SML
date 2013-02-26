@@ -1,7 +1,9 @@
 #!/u1/staff/jbw/bin/smlnj-script
 
+(* the program is run as a script to make use of smlnj ability to parse json *)
 datatype operator = OP_SET | OP_TUPLE | OP_DOMAIN | OP_RANGE | OP_EQUAL | OP_MEMBER | OP_IS_FUNCTION | OP_APPLY_FUNCTION | OP_NTH | OP_UNION | OP_INTERSECTION | OP_SET_DIFFERENCE;
 
+(* added EXP_SET and EXP_TUPLE wrappers to unify types used *)
 datatype expression = EXP_INT of IntInf.int
                     | EXP_VAR of string
                     | EXP_OP of operator * expression list
@@ -53,15 +55,21 @@ fun jsonToStatementList (JSON.OBJECT [("statement-list", JSON.ARRAY children)])
   | jsonToStatementList _ = raise (Fail "illegal list of statements");
 (* end of json parser functions taken from Joe Wells' input-converter script *)
 
-(* start of declaration of my storage table for expressions: type and functions *)
+(* start of declaration of my storage table for expressions: type and functions. *)
+(* Taken from "Introduction to Programming using SML" book by Hansen and Rischel *)
 type table = (string * expression) list
 exception Table
 
+(* gets value given key from table*)
 fun getval(a,[]) = EXP_VAR "undefined"
   | getval(a,(a1,b1)::t) = if a=a1 then b1 else getval(a,t);
+
+(* updates value given key in table *)
 fun update(a,b,[]) = SOME [(a,b)]
   | update(a,b,(a1,b1)::t) = if a=a1 then SOME ((a,b)::t)
                              else SOME ((a1,b1)::(Option.valOf(update(a,b,t))));
+
+(* inserts key-value pair into table *)
 fun insert(a,b,[]) = SOME [(a,b)]
   | insert(a,b,(a1,b1)::t) = if a=a1 then (update(a,b,(a1,b1)::t))
                             else (case insert (a,b,t) of
@@ -70,7 +78,7 @@ fun insert(a,b,[]) = SOME [(a,b)]
 (* end of declaration of my storage table for expressions: type and functions *)
 
 (* start of initialisation of default input file and then parsing it *)
-val default_input = "input2.json";
+val default_input = "input.json";
 val listok = jsonToStatementList (JSONParser.parseFile default_input);
 (* end of initialisation of default input file and then parsing it *)
 
@@ -79,7 +87,7 @@ val default_output = "output.txt";
 val out = TextIO.openOut default_output;
 (* end of initialisation of default output file and stream to it *)
 
-(* printing function hardwired output stream to namespace "out" *)
+(* printing function hardwired output stream to variable "out" *)
 fun printf s = TextIO.output (out,s)
 
 (* start of PRINTING FUNCTION FROM PART-1, modified to print into a stream *)
@@ -109,46 +117,55 @@ in
 end;
 (* end of PRINTING FUNCTION FROM PART-1 *)
 
-(* start of function prints to output stream *)
+(* start of function for printing table to output stream *)
 fun toStream [] = (TextIO.flushOut out)
   | toStream ((s:string, e:expression)::tail) = (printf (s^"="); printVal (e); toStream tail);
-(* end of function prints to output stream *)
+(* end of function for printing table to output stream *)
 
-let
+(* start of evaluation functions *)
+local
+  (* return values for variables and integers *)
   fun numValue (EXP_INT i,vars) = EXP_INT i
     | numValue (EXP_VAR vv,vars) = getval (vv,vars)
     | numValue _ = raise (Fail "numValue exception");
 
-  fun member (EXP_INT i, EXP_SET []) = false
-    | member (EXP_INT i, EXP_TUPLE []) = false
-    | member (EXP_INT i, EXP_SET (EXP_INT h::t)) = if i=h then true else (member (EXP_INT i,EXP_SET t))
-    | member (EXP_INT i, EXP_TUPLE (EXP_INT h::t)) = if i=h then true else (member (EXP_INT i,EXP_TUPLE t))
+  (* determine whether element exists in set or tuple *)
+  fun member (a, EXP_SET set) = List.exists (fn x => x=a) set
+    | member (a, EXP_TUPLE tuple) = List.exists (fn x => x=a) tuple
     | member _ = raise (Fail "member exception");
 
+  (* start of mutually recursive declaration, very strong coupling *)
+  (* finds list of values from a list, ie converts variables into values, also garbage collects *)
+  (* because sets and tuples are implemented as lists, tuples are also garbage collected and are not allowed duplicates *)
   fun setValue ([],vars) = []
-    | setValue (EXP_INT h::t,vars) = (numValue (EXP_INT h,vars))::(setValue (t,vars))
-    | setValue (EXP_VAR h::t,vars) = (numValue (EXP_VAR h,vars))::(setValue (t,vars))
-    | setValue (EXP_OP  h::t,vars) = (opValue (h,vars))::(setValue (t,vars))
+    | setValue (EXP_INT h::t,vars) = if (List.exists (fn x => x=(EXP_INT h)) t) then (setValue (t,vars)) else (numValue (EXP_INT h,vars))::(setValue (t,vars))
+    | setValue (EXP_VAR h::t,vars) = if (List.exists (fn x => x=(EXP_VAR h)) t) then (setValue (t,vars)) else (numValue (EXP_VAR h,vars))::(setValue (t,vars))
+    | setValue (EXP_OP h::t,vars) = if (List.exists (fn x => x=(EXP_OP h)) t) then (setValue (t,vars)) else (opValue (h,vars))::(setValue (t,vars))
     | setValue _ = raise (Fail "setValue exception ")
 
+  (* finds value of an EXP_OP tuple, OP_EQUAL is taken as equality check here *)
   and opValue ((OP_SET, set),vars) = EXP_SET (setValue (set,vars))
     | opValue ((OP_TUPLE, tuple),vars) = EXP_TUPLE (setValue (tuple,vars))
     | opValue ((OP_EQUAL, [a,b]),vars) = if (expValue (a,vars))=(expValue (b,vars)) then EXP_INT 1 else EXP_INT 0
     | opValue ((OP_MEMBER, [a,b]),vars) = if (member ((expValue (a,vars)),(expValue (b,vars)))) then EXP_INT 1 else EXP_INT 0
     | opValue _ = raise (Fail "opValue exception")
 
+  (* calculates value of expression arguments; singleton values are returned, operator expressions are passed to opValue *)
   and expValue (EXP_INT i,vars) = numValue (EXP_INT i,vars)
     | expValue (EXP_VAR vv,vars) = numValue (EXP_VAR vv,vars)
     | expValue (EXP_OP oper,vars) = opValue (oper,vars)
     | expValue _ = raise (Fail "expValue exception");
+  (* end of mutually recursive declaration *)
 
+  (* goes through a list of expressions, performs assignation by storing variable name and its value in a table *)
+  (* return a table with key-value pairs *)
   fun evaluator ([],SOME vars) = SOME vars
-    | evaluator ((EXP_OP (OP_EQUAL, [EXP_VAR name, arg]))::exp_tail,SOME vars)=(printf name;evaluator (exp_tail,insert(name,(expValue (arg,vars)),vars)))
-(*    | evaluator (h,SOME vars) = raise (Fail ("evaluator exception: " ^ (expToString (expValue (h,vars)))))*)
+    | evaluator ((EXP_OP (OP_EQUAL, [EXP_VAR name, arg]))::exp_tail,SOME vars)=evaluator (exp_tail,insert(name,(expValue (arg,vars)),vars))
     | evaluator _ = raise (Fail "evaluator exception");
-
-in evaluator (listok,(SOME ([]:table)))
+in
+  val hashMap = evaluator (listok,(SOME ([]:table)));
 end;
+(* end of evaluation functions *)
 
-(* print the result to the default file *)
-toStream (Option.valOf(it));
+(* print the result to the default outfile *)
+toStream (Option.valOf(hashMap));
