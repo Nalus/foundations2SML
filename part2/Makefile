@@ -1,7 +1,4 @@
-all: part-1-run
+all: part-2-run
 
-part-1-run: part-1.sml
-	mlton part-1.sml	
-
-test: test.sml
-	mlton test.sml
+part-2-run: part-2.sml
+	./part-2.sml	
