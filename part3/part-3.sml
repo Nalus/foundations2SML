@@ -190,6 +190,11 @@ local
     | inverseFunc (EXP_SET ((EXP_TUPLE a)::t),inverse) = inverseFunc (EXP_SET t, EXP_TUPLE (rev a)::inverse)
     | inverseFunc _ = (printBadInput();raise (Fail "inverseFunc exception"));
 
+  (* boolean function that determines whether a function is injective, 1:1, only one key to each value *)
+  fun isInjFunc (EXP_SET []) = true
+    | isInjFunc (EXP_SET ((EXP_TUPLE [a,b])::t)) = if (List.exists (fn EXP_TUPLE [x,b] => x=a) t) then false else (isFunc (EXP_SET t))
+    | isInjFunc _ = false;
+
   (* start of mutually recursive declaration, very strong coupling *)
   (* finds list of values from a list, ie converts variables into values, also garbage collects *)
   (* because sets and tuples are implemented as lists, tuples are also garbage collected and are not allowed duplicates *)
@@ -219,6 +224,7 @@ local
     | opValue ((OP_UNION, [EXP_SET a,EXP_SET b]),vars) = unionFunc ((expValue (EXP_SET a,vars)),(expValue (EXP_SET b,vars)))
     | opValue ((OP_DIFFERENCE, [EXP_SET a,EXP_SET b]),vars) = diffFunc ((expValue (EXP_SET a,vars)),(expValue (EXP_SET b,vars)),[])
     | opValue ((OP_INVERSE, [EXP_VAR a]),vars) = if (isFunc (expValue (EXP_VAR a,vars))) then inverseFunc (expValue (EXP_VAR a,vars),[]) else EXP_VAR "undefined"
+    | opValue ((OP_IS_INJECTIVE, [EXP_VAR a]),vars) = if (isFunc (expValue (EXP_VAR a,vars))) then isInjFunc (expValue (EXP_VAR a,vars)) else EXP_VAR "undefined"
     | opValue _ = (printBadInput();raise (Fail "opValue exception"))
 
   (* calculates value of expression arguments; singleton values are returned, operator expressions are passed to opValue *)
