@@ -143,12 +143,33 @@ local
 
   (* determine whether element is a function *)
   fun isFunc (EXP_SET []) = true
-    | isFunc (EXP_SET ((EXP_TUPLE [a,b])::t)) = if (List.exists (fn EXP_TUPLE [a,x] => x=b) t) then false  else (isFunc (EXP_SET t))
-    | isFunc _ = false
+    | isFunc (EXP_SET ((EXP_TUPLE [a,b])::t)) = if (List.exists (fn EXP_TUPLE [a,x] => x=b) t) then false else (isFunc (EXP_SET t))
+    | isFunc _ = false;
 
-  fun applyFunc (EXP_VAR a,b) = EXP_VAR a (* undefined *)
-    | applyFunc (a,b) = if (isFunc a) then apply (a,b) else ()
-    | applyFunc _ = (printBadInput();raise (Fail "applyFunc exception"))
+  fun apply ([],b) = EXP_VAR "undefined"
+    | apply ((EXP_TUPLE [x,y])::t,b) = if x=b then y else apply (t,b)
+    | apply _ = (printBadInput();raise (Fail "apply exception"));
+
+  (* takes in a function, [(),(),...], and an element *)
+  fun applyFunc (EXP_SET a,b) = if (isFunc (EXP_SET a)) then apply (a,b) else EXP_VAR "undefined" (* ask what to do *)
+    | applyFunc _ = (printBadInput();raise (Fail "applyFunc exception"));
+
+  (* returns left elements of all elements of a function *)
+  fun domain (EXP_SET [],[]) = []
+    | domain (EXP_SET [],domSet) = rev domSet
+    | domain (EXP_SET (EXP_TUPLE [a,b]::t),domSet) = domain (EXP_SET t,a::domSet)
+    | domain _ = (printBadInput();raise (Fail "domain exception"));
+
+  fun domainFunc (EXP_SET a) = if (isFunc (EXP_SET a)) then (EXP_SET (domain (EXP_SET a,[]))) else EXP_VAR "undefined"
+    | domainFunc _ = (printBadInput();raise (Fail "applyFunc exception"))
+
+  fun range (EXP_SET [],[]) = []
+    | range (EXP_SET [],rangeSet) = rev rangeSet
+    | range (EXP_SET (EXP_TUPLE [a,b]::t),rangeSet) = range (EXP_SET t,a::rangeSet)
+    | range _ = (printBadInput();raise (Fail "range exception"));
+
+  fun rangeFunc (EXP_SET a) = if (isFunc (EXP_SET a)) then (EXP_SET (range (EXP_SET a,[]))) else EXP_VAR "undefined"
+    | rangeFunc _ = (printBadInput();raise (Fail "applyFunc exception"))
 
   (* start of mutually recursive declaration, very strong coupling *)
   (* finds list of values from a list, ie converts variables into values, also garbage collects *)
@@ -172,7 +193,8 @@ local
     | opValue ((OP_EQUAL, [a,b]),vars) = if (expValue (a,vars))=(expValue (b,vars)) then EXP_INT 1 else EXP_INT 0
     | opValue ((OP_MEMBER, [a,b]),vars) = if (member ((expValue (a,vars)),(expValue (b,vars)))) then EXP_INT 1 else EXP_INT 0
     | opValue((OP_IS_FUNCTION, [EXP_VAR a]),vars) = if (isFunc (getval (a,vars))) then EXP_INT 1 else EXP_INT 0
-    | opValue((OP_APPLY_FUNCTION, [EXP_VAR a, b]),vars) = applyFunc (getval(a,vars), b)
+    | opValue((OP_APPLY_FUNCTION, [a, b]),vars) = applyFunc (expValue(a,vars), expValue(b,vars))
+    | opValue ((OP_DOMAIN, [EXP_SET a]),vars) = domainFunc (expValue (EXP_SET a,vars))
     | opValue _ = (printBadInput();raise (Fail "opValue exception"))
 
   (* calculates value of expression arguments; singleton values are returned, operator expressions are passed to opValue *)
