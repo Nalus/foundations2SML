@@ -224,7 +224,7 @@ local
     | opValue ((OP_UNION, [EXP_SET a,EXP_SET b]),vars) = unionFunc ((expValue (EXP_SET a,vars)),(expValue (EXP_SET b,vars)))
     | opValue ((OP_DIFFERENCE, [EXP_SET a,EXP_SET b]),vars) = diffFunc ((expValue (EXP_SET a,vars)),(expValue (EXP_SET b,vars)),[])
     | opValue ((OP_INVERSE, [EXP_VAR a]),vars) = if (isFunc (expValue (EXP_VAR a,vars))) then inverseFunc (expValue (EXP_VAR a,vars),[]) else EXP_VAR "undefined"
-    | opValue ((OP_IS_INJECTIVE, [EXP_VAR a]),vars) = if (isFunc (expValue (EXP_VAR a,vars))) then isInjFunc (expValue (EXP_VAR a,vars)) else EXP_VAR "undefined"
+    | opValue ((OP_IS_INJECTIVE, [EXP_VAR a]),vars) = if (isFunc (expValue (EXP_VAR a,vars))) then (if (isInjFunc (expValue (EXP_VAR a,vars))) then EXP_INT 1 else EXP_INT 0) else EXP_VAR "undefined"
     | opValue _ = (printBadInput();raise (Fail "opValue exception"))
 
   (* calculates value of expression arguments; singleton values are returned, operator expressions are passed to opValue *)
