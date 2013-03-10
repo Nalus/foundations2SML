@@ -154,22 +154,39 @@ local
   fun applyFunc (EXP_SET a,b) = if (isFunc (EXP_SET a)) then apply (a,b) else EXP_VAR "undefined" (* ask what to do *)
     | applyFunc _ = (printBadInput();raise (Fail "applyFunc exception"));
 
-  (* returns left elements of all elements of a function *)
+  (* returns left elements of all pairs of a function *)
   fun domain (EXP_SET [],[]) = []
     | domain (EXP_SET [],domSet) = rev domSet
     | domain (EXP_SET (EXP_TUPLE [a,b]::t),domSet) = domain (EXP_SET t,a::domSet)
     | domain _ = (printBadInput();raise (Fail "domain exception"));
 
   fun domainFunc (EXP_SET a) = if (isFunc (EXP_SET a)) then (EXP_SET (domain (EXP_SET a,[]))) else EXP_VAR "undefined"
-    | domainFunc _ = (printBadInput();raise (Fail "applyFunc exception"))
+    | domainFunc _ = (printBadInput();raise (Fail "applyFunc exception"));
 
-  fun range (EXP_SET [],[]) = []
-    | range (EXP_SET [],rangeSet) = rev rangeSet
+  (* returns right elements of all pairs of a function *)
+  fun range (EXP_SET [],rangeSet) = rev rangeSet
     | range (EXP_SET (EXP_TUPLE [a,b]::t),rangeSet) = range (EXP_SET t,a::rangeSet)
     | range _ = (printBadInput();raise (Fail "range exception"));
 
   fun rangeFunc (EXP_SET a) = if (isFunc (EXP_SET a)) then (EXP_SET (range (EXP_SET a,[]))) else EXP_VAR "undefined"
-    | rangeFunc _ = (printBadInput();raise (Fail "applyFunc exception"))
+    | rangeFunc _ = (printBadInput();raise (Fail "applyFunc exception"));
+
+  (* set operation: intersection *)
+  fun interFunc (EXP_SET [],EXP_SET b,interSet) = EXP_SET (rev interSet)
+    | interFunc (EXP_SET a,EXP_SET [],interSet) = EXP_SET (rev interSet)
+    | interFunc (EXP_SET (h1::t1),EXP_SET a2,interSet) =
+if (List.exists (fn x=>x=h1) a2) then interFunc(EXP_SET t1,EXP_SET a2,h1::interSet)
+else interFunc(EXP_SET t1,EXP_SET a2,interSet)
+    | interFunc _ = (printBadInput();raise (Fail "interFunc exception"));
+
+  (* set operation: union *)
+  fun garbage [] = []
+    | garbage (h::t) = if (List.exists (fn x=>x=h) t) then h::(garbage t) else (garbage t)
+
+  fun unionFunc (EXP_SET [],EXP_SET b) = EXP_SET (b)
+    | unionFunc (EXP_SET a,EXP_SET []) = EXP_SET (a)
+    | unionFunc (EXP_SET a,EXP_SET b) = EXP_SET (garbage a@b)
+    | unionFunc _ = (printBadInput();raise (Fail "unionFunc exception"));
 
   (* start of mutually recursive declaration, very strong coupling *)
   (* finds list of values from a list, ie converts variables into values, also garbage collects *)
@@ -195,6 +212,8 @@ local
     | opValue((OP_IS_FUNCTION, [EXP_VAR a]),vars) = if (isFunc (getval (a,vars))) then EXP_INT 1 else EXP_INT 0
     | opValue((OP_APPLY_FUNCTION, [a, b]),vars) = applyFunc (expValue(a,vars), expValue(b,vars))
     | opValue ((OP_DOMAIN, [EXP_SET a]),vars) = domainFunc (expValue (EXP_SET a,vars))
+    | opValue ((OP_INTERSECTION, [EXP_SET a,EXP_SET b]),vars) = interFunc ((expValue (EXP_SET a,vars)),(expValue (EXP_SET b,vars)),[])
+    | opValue ((OP_UNION, [EXP_SET a,EXP_SET b]),vars) = unionFunc ((expValue (EXP_SET a,vars)),(expValue (EXP_SET b,vars)))
     | opValue _ = (printBadInput();raise (Fail "opValue exception"))
 
   (* calculates value of expression arguments; singleton values are returned, operator expressions are passed to opValue *)
