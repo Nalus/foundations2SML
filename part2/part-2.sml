@@ -146,9 +146,16 @@ local
     | setValue (EXP_OP h::t,vars) = if (List.exists (fn x => x=(EXP_OP h)) t) then (setValue (t,vars)) else (opValue (h,vars))::(setValue (t,vars))
     | setValue _ = (printBadInput();raise (Fail "setValue exception "))
 
+  (* tuple evaluation *)
+  and tupleValue ([],vars) = []
+    | tupleValue (EXP_INT h::t,vars) = (numValue (EXP_INT h,vars))::(tupleValue (t,vars))
+    | tupleValue (EXP_VAR h::t,vars) = (numValue (EXP_VAR h,vars))::(tupleValue (t,vars))
+    | tupleValue (EXP_OP h::t,vars) = (opValue (h,vars))::(tupleValue (t,vars))
+    | tupleValue _ = (printBadInput();raise (Fail "tupleValue exception "))
+
   (* finds value of an EXP_OP tuple, OP_EQUAL is taken as equality check here *)
   and opValue ((OP_SET, set),vars) = EXP_SET (setValue (set,vars))
-    | opValue ((OP_TUPLE, tuple),vars) = EXP_TUPLE (setValue (tuple,vars))
+    | opValue ((OP_TUPLE, tuple),vars) = EXP_TUPLE (tupleValue (tuple,vars))
     | opValue ((OP_EQUAL, [a,b]),vars) = if (expValue (a,vars))=(expValue (b,vars)) then EXP_INT 1 else EXP_INT 0
     | opValue ((OP_MEMBER, [a,b]),vars) = if (member ((expValue (a,vars)),(expValue (b,vars)))) then EXP_INT 1 else EXP_INT 0
     | opValue _ = (printBadInput();raise (Fail "opValue exception"))
@@ -172,6 +179,7 @@ in
   val hashMap = evaluator (listok,(SOME ([]:table)));
 end;
 (* end of evaluation functions *)
+
 
 (* print the result to the default outfile *)
 (*toStream (Option.valOf(hashMap));*)
