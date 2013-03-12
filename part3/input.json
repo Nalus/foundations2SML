@@ -318,6 +318,48 @@
                       ]
                   }
               ]
+          },
+        {
+            "operator" : "equal",
+            "arguments" : [
+                {
+                    "variable" : "x16"
+                  },
+                {
+                    "variable" : "x3"
+                  }
+              ]
+          },
+        {
+            "operator" : "equal",
+            "arguments" : [
+                {
+                    "variable" : "x17"
+                  },
+                {
+                    "operator" : "apply-function",
+                    "arguments" : [
+                        {
+                            "variable" : "x9"
+                          },
+                        {
+                            "operator" : "tuple",
+                            "arguments" : [
+                                0,
+                                {
+                                    "operator" : "apply-function",
+                                    "arguments" : [
+                                        {
+                                            "variable" : "x10"
+                                          },
+                                        2
+                                      ]
+                                  }
+                              ]
+                          }
+                      ]
+                  }
+              ]
           }
       ]
   }

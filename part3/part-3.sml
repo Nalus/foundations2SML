@@ -213,6 +213,7 @@ local
 
   (* finds value of an EXP_OP tuple, OP_EQUAL is taken as equality check here *)
   and opValue ((OP_SET, set),vars) = EXP_SET (setValue (set,vars))
+    | opValue ((OP_TUPLE, [a]),vars) = expValue (a,vars)
     | opValue ((OP_TUPLE, tuple),vars) = EXP_TUPLE (tupleValue (tuple,vars))
     | opValue ((OP_EQUAL, [a,b]),vars) = if (expValue (a,vars))=(expValue (b,vars)) then EXP_INT 1 else EXP_INT 0
     | opValue ((OP_MEMBER, [a,b]),vars) = if (member ((expValue (a,vars)),(expValue (b,vars)))) then EXP_INT 1 else EXP_INT 0
