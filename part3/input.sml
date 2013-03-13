@@ -54,15 +54,6 @@
            EXP_OP (OP_SET,[EXP_VAR "x0",EXP_VAR "x1",EXP_VAR "x1"])])]),
    EXP_OP
      (OP_EQUAL,
-      [EXP_VAR "x16",
-       EXP_OP
-         (OP_APPLY_FUNCTION,
-          [EXP_VAR "x8",
-           EXP_OP
-             (OP_TUPLE,
-              [EXP_INT 0,EXP_OP (OP_APPLY_FUNCTION,[EXP_VAR "x10",EXP_INT 2])])])]),
-   EXP_OP
-     (OP_EQUAL,
       [EXP_VAR "x17",
        EXP_OP
          (OP_APPLY_FUNCTION,

@@ -217,15 +217,15 @@ local
     | opValue ((OP_TUPLE, tuple),vars) = EXP_TUPLE (tupleValue (tuple,vars))
     | opValue ((OP_EQUAL, [a,b]),vars) = if (expValue (a,vars))=(expValue (b,vars)) then EXP_INT 1 else EXP_INT 0
     | opValue ((OP_MEMBER, [a,b]),vars) = if (member ((expValue (a,vars)),(expValue (b,vars)))) then EXP_INT 1 else EXP_INT 0
-    | opValue ((OP_IS_FUNCTION, [EXP_VAR a]),vars) = if (isFunc (expValue (EXP_VAR a,vars))) then EXP_INT 1 else EXP_INT 0
+    | opValue ((OP_IS_FUNCTION, [a]),vars) = if (isFunc (expValue (a,vars))) then EXP_INT 1 else EXP_INT 0
     | opValue ((OP_APPLY_FUNCTION, [a, b]),vars) = applyFunc (expValue(a,vars), expValue(b,vars))
-    | opValue ((OP_DOMAIN, [EXP_VAR a]),vars) = if (isFunc (expValue (EXP_VAR a,vars))) then (domainFunc (expValue (EXP_VAR a,vars),[])) else EXP_VAR "undefined"
-    | opValue ((OP_RANGE, [EXP_VAR a]),vars) = if (isFunc (expValue (EXP_VAR a,vars))) then (rangeFunc (expValue (EXP_VAR a,vars),[])) else EXP_VAR "undefined"
-    | opValue ((OP_INTERSECTION, [EXP_SET a,EXP_SET b]),vars) = interFunc ((expValue (EXP_SET a,vars)),(expValue (EXP_SET b,vars)),[])
-    | opValue ((OP_UNION, [EXP_SET a,EXP_SET b]),vars) = unionFunc ((expValue (EXP_SET a,vars)),(expValue (EXP_SET b,vars)))
-    | opValue ((OP_DIFFERENCE, [EXP_SET a,EXP_SET b]),vars) = diffFunc ((expValue (EXP_SET a,vars)),(expValue (EXP_SET b,vars)),[])
-    | opValue ((OP_INVERSE, [EXP_VAR a]),vars) = if (isFunc (expValue (EXP_VAR a,vars))) then inverseFunc (expValue (EXP_VAR a,vars),[]) else EXP_VAR "undefined"
-    | opValue ((OP_IS_INJECTIVE, [EXP_VAR a]),vars) = if (isFunc (expValue (EXP_VAR a,vars))) then (if (isInjFunc (expValue (EXP_VAR a,vars))) then EXP_INT 1 else EXP_INT 0) else EXP_VAR "undefined"
+    | opValue ((OP_DOMAIN, [a]),vars) = if (isFunc (expValue (a,vars))) then (domainFunc (expValue (a,vars),[])) else EXP_VAR "undefined"
+    | opValue ((OP_RANGE, [a]),vars) = if (isFunc (expValue (a,vars))) then (rangeFunc (expValue (a,vars),[])) else EXP_VAR "undefined"
+    | opValue ((OP_INTERSECTION, [a,b]),vars) = interFunc ((expValue (a,vars)),(expValue (b,vars)),[])
+    | opValue ((OP_UNION, [a,b]),vars) = unionFunc ((expValue (a,vars)),(expValue (b,vars)))
+    | opValue ((OP_DIFFERENCE, [a,b]),vars) = diffFunc ((expValue (a,vars)),(expValue (b,vars)),[])
+    | opValue ((OP_INVERSE, [a]),vars) = if (isFunc (expValue (a,vars))) then inverseFunc (expValue (a,vars),[]) else EXP_VAR "undefined"
+    | opValue ((OP_IS_INJECTIVE, [a]),vars) = if (isFunc (expValue (a,vars))) then (if (isInjFunc (expValue (a,vars))) then EXP_INT 1 else EXP_INT 0) else EXP_VAR "undefined"
     | opValue _ = (printBadInput();raise (Fail "opValue exception"))
 
   (* calculates value of expression arguments; singleton values are returned, operator expressions are passed to opValue *)

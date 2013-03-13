@@ -323,37 +323,6 @@
             "operator" : "equal",
             "arguments" : [
                 {
-                    "variable" : "x16"
-                  },
-                {
-                    "operator" : "apply-function",
-                    "arguments" : [
-                        {
-                            "variable" : "x8"
-                          },
-                        {
-                            "operator" : "tuple",
-                            "arguments" : [
-                                0,
-                                {
-                                    "operator" : "apply-function",
-                                    "arguments" : [
-                                        {
-                                            "variable" : "x10"
-                                          },
-                                        2
-                                      ]
-                                  }
-                              ]
-                          }
-                      ]
-                  }
-              ]
-          },
-        {
-            "operator" : "equal",
-            "arguments" : [
-                {
                     "variable" : "x17"
                   },
                 {
