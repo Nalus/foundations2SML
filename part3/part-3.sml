@@ -143,7 +143,7 @@ local
 
   (* determine whether element is a function *)
   fun isFunc (EXP_SET []) = true
-    | isFunc (EXP_SET ((EXP_TUPLE [a,b])::t)) = if (List.exists (fn EXP_TUPLE [a,x] => x=b) t) then false else (isFunc (EXP_SET t))
+    | isFunc (EXP_SET ((EXP_TUPLE [a,b])::t)) = if (List.exists (fn EXP_TUPLE [a,x] => x=b | _ => raise (Fail "this is impossible #0\n")) t) then false else (isFunc (EXP_SET t))
     | isFunc _ = false;
 
   fun apply ([],b) = EXP_VAR "undefined"
@@ -192,7 +192,7 @@ local
 
   (* boolean function that determines whether a function is injective, 1:1, only one key to each value *)
   fun isInjFunc (EXP_SET []) = true
-    | isInjFunc (EXP_SET ((EXP_TUPLE [a,b])::t)) = if (List.exists (fn EXP_TUPLE [x,b] => x=a) t) then false else (isFunc (EXP_SET t))
+    | isInjFunc (EXP_SET ((EXP_TUPLE [a,b])::t)) = if (List.exists (fn EXP_TUPLE [x,b] => x=a | _ => raise (Fail "this is impossible #1\n")) t) then false else (isFunc (EXP_SET t))
     | isInjFunc _ = false;
 
   (* start of mutually recursive declaration, very strong coupling *)
