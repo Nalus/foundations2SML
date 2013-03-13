@@ -146,13 +146,14 @@ local
     | isFunc (EXP_SET ((EXP_TUPLE [a,b])::t)) = if (List.exists (fn EXP_TUPLE [a,x] => x=b | _ => raise (Fail "this is impossible #0\n")) t) then false else (isFunc (EXP_SET t))
     | isFunc _ = false;
 
-  fun apply ([],b) = EXP_VAR "undefined"
-    | apply ((EXP_TUPLE [x,y])::t,b) = if x=b then y else apply (t,b)
-    | apply _ = (printBadInput();raise (Fail "apply exception"));
+  fun apply ((EXP_TUPLE [x,y])::t,b) = if x=b then y else apply (t,b)
+    | apply _ = EXP_VAR "undefined";
+(*    | apply _ = (printBadInput();raise (Fail "apply exception"));*)
 
   (* takes in a function, [(),(),...], and an element *)
-  fun applyFunc (EXP_SET a,b) = if (isFunc (EXP_SET a)) then apply (a,b) else EXP_VAR "undefined" (* ask what to do *)
-    | applyFunc _ = (printBadInput();raise (Fail "applyFunc exception"));
+  fun applyFunc (EXP_SET a,b) = if (isFunc (EXP_SET a)) then apply (a,b) else EXP_VAR "undefined"
+    | applyFunc _ = EXP_VAR "undefined";
+(*    | applyFunc _ = (printBadInput();raise (Fail "applyFunc exception"));*)
 
   (* returns left elements of all pairs of a function *)
   fun domainFunc (EXP_SET [],domSet) = EXP_SET (rev domSet)

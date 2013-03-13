@@ -433,17 +433,6 @@
             "operator" : "equal",
             "arguments" : [
                 {
-                    "variable" : "x16"
-                  },
-                {
-                    "variable" : "x3"
-                  }
-              ]
-          },
-        {
-            "operator" : "equal",
-            "arguments" : [
-                {
                     "variable" : "x28"
                   },
                 {
@@ -478,6 +467,59 @@
             "operator" : "equal",
             "arguments" : [
                 {
+                    "variable" : "x16"
+                  },
+                {
+                    "operator" : "apply-function",
+                    "arguments" : [
+                        {
+                            "variable" : "x8"
+                          },
+                        {
+                            "variable" : "x29"
+                          }
+                      ]
+                  }
+              ]
+          },
+        {
+            "operator" : "equal",
+            "arguments" : [
+                {
+                    "variable" : "x30"
+                  },
+                {
+                    "operator" : "apply-function",
+                    "arguments" : [
+                        {
+                            "variable" : "x10"
+                          },
+                        2
+                      ]
+                  }
+              ]
+          },
+        {
+            "operator" : "equal",
+            "arguments" : [
+                {
+                    "variable" : "x31"
+                  },
+                {
+                    "operator" : "tuple",
+                    "arguments" : [
+                        0,
+                        {
+                            "variable" : "x30"
+                          }
+                      ]
+                  }
+              ]
+          },
+        {
+            "operator" : "equal",
+            "arguments" : [
+                {
                     "variable" : "x17"
                   },
                 {
@@ -487,7 +529,7 @@
                             "variable" : "x9"
                           },
                         {
-                            "variable" : "x29"
+                            "variable" : "x31"
                           }
                       ]
                   }
