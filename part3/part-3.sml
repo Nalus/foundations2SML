@@ -15,6 +15,8 @@ datatype expression = EXP_INT of IntInf.int
                     | EXP_TUPLE of expression list
                     | EXP_UNDEF;
 
+val undef = "undefined!"
+
 (* start of json parser functions taken from Joe Wells' input-converter script *)
 fun operatorToName OP_SET            = "set"
   | operatorToName OP_TUPLE          = "tuple"
@@ -69,7 +71,7 @@ type table = (string * expression) list
 exception Table
 
 (* gets value given key from table*)
-fun getval(a,[]) = EXP_VAR "undefined"
+fun getval(a,[]) = EXP_VAR undef
   | getval(a,(a1,b1)::t) = if a=a1 then b1 else getval(a,t);
 
 (* updates value given key in table *)
@@ -104,7 +106,7 @@ local
     fun printS (EXP_INT num) = printf (IntInf.toString num)
       | printS (EXP_SET []) = ()
       | printS (EXP_SET ((EXP_INT h)::t)) = (printS (EXP_INT h); if(isLast t) then () else printf ","; printS (EXP_SET t))
-      | printS (EXP_SET ((EXP_VAR "undefined")::t)) = printf "underfined"
+      | printS (EXP_SET ((EXP_VAR undef)::t)) = printf undef
       | printS (EXP_SET ((EXP_SET h)::t)) = (printf "{"; printS (EXP_SET h); printf "}"; if(isLast t) then () else printf ","; printS (EXP_SET t))
       | printS (EXP_SET ((EXP_TUPLE h)::t)) = (printf "("; printS (EXP_TUPLE h); printf ")"; if(isLast t) then () else printf ","; printS (EXP_SET t))
       | printS (EXP_TUPLE []) = ()
@@ -115,7 +117,7 @@ local
   end;
 in
   fun printVal (EXP_INT i) = (printf (IntInf.toString i); printf ";\n")
-    | printVal (EXP_VAR "undefined") = printf "undefined;\n"
+    | printVal (EXP_VAR undef) = printf (undef^";\n")
     | printVal (EXP_SET s) = (printf "{";  printS (EXP_SET s); printf "};\n")
     | printVal (EXP_TUPLE tu) = (printf "("; printS (EXP_TUPLE tu); printf ");\n")
     | printVal _ = raise (Fail "printVal exception")
@@ -136,10 +138,10 @@ local
     | numValue (EXP_VAR vv,vars) = getval (vv,vars)
     | numValue _ = (printBadInput();raise (Fail "numValue exception"));
 
-  (* determine whether element exists in set or tuple *)
-  fun member (a, EXP_SET set) = List.exists (fn x => x=a) set
-    | member (a, EXP_TUPLE tuple) = List.exists (fn x => x=a) tuple
-    | member _ = (printBadInput();raise (Fail "member exception"));
+  (* determine whether element exists in set *)
+  fun member (a, EXP_SET set) = if (List.exists (fn x => x=a) set) then EXP_INT 1 else EXP_INT 0
+    | member _ = EXP_VAR undef;
+(*    | member _ = (printBadInput();raise (Fail "member exception"));*)
 
   (* determine whether element is a function *)
   fun isFunc (EXP_SET []) = true
@@ -147,29 +149,32 @@ local
     | isFunc _ = false;
 
   fun apply ((EXP_TUPLE [x,y])::t,b) = if x=b then y else apply (t,b)
-    | apply _ = EXP_VAR "undefined";
+    | apply _ = EXP_VAR undef;
 (*    | apply _ = (printBadInput();raise (Fail "apply exception"));*)
 
   (* takes in a function, [(),(),...], and an element *)
-  fun applyFunc (EXP_SET a,b) = if (isFunc (EXP_SET a)) then apply (a,b) else EXP_VAR "undefined"
-    | applyFunc _ = EXP_VAR "undefined";
+  fun applyFunc (EXP_SET a,b) = if (isFunc (EXP_SET a)) then apply (a,b) else EXP_VAR undef
+    | applyFunc _ = EXP_VAR undef;
 (*    | applyFunc _ = (printBadInput();raise (Fail "applyFunc exception"));*)
 
   (* returns left elements of all pairs of a function *)
   fun domainFunc (EXP_SET [],domSet) = EXP_SET (rev domSet)
     | domainFunc (EXP_SET (EXP_TUPLE [a,b]::t),domSet) = domainFunc (EXP_SET t,a::domSet)
-    | domainFunc _ = (printBadInput();raise (Fail "domain exception"));
+    | domainFunc _ = EXP_VAR undef;
+(*    | domainFunc _ = (printBadInput();raise (Fail "domain exception"));*)
 
   (* returns right elements of all pairs of a function *)
   fun rangeFunc (EXP_SET [],rangeSet) = EXP_SET (rev rangeSet)
     | rangeFunc (EXP_SET (EXP_TUPLE [a,b]::t),rangeSet) = rangeFunc (EXP_SET t,a::rangeSet)
-    | rangeFunc _ = (printBadInput();raise (Fail "range exception"));
+    | rangeFunc _ = EXP_VAR undef;
+(*    | rangeFunc _ = (printBadInput();raise (Fail "range exception"));*)
 
   (* set operation: intersection *)
   fun interFunc (EXP_SET [],EXP_SET b,interSet) = EXP_SET (rev interSet)
     | interFunc (EXP_SET a,EXP_SET [],interSet) = EXP_SET (rev interSet)
     | interFunc (EXP_SET (h1::t1),EXP_SET b,interSet) = if (List.exists (fn x=>x=h1) b) then interFunc(EXP_SET t1,EXP_SET b,h1::interSet) else interFunc(EXP_SET t1,EXP_SET b,interSet)
-    | interFunc _ = (printBadInput();raise (Fail "interFunc exception"));
+    | interFunc _ = EXP_VAR undef;
+(*    | interFunc _ = (printBadInput();raise (Fail "interFunc exception"));*)
 
   (* set operation: union *)
   fun garbage [] = []
@@ -178,21 +183,24 @@ local
   fun unionFunc (EXP_SET [],EXP_SET b) = EXP_SET (b)
     | unionFunc (EXP_SET a,EXP_SET []) = EXP_SET (a)
     | unionFunc (EXP_SET a,EXP_SET b) = EXP_SET (garbage a@b)
-    | unionFunc _ = (printBadInput();raise (Fail "unionFunc exception"));
+    | unionFunc _ = EXP_VAR undef;
+(*    | unionFunc _ = (printBadInput();raise (Fail "unionFunc exception"));*)
 
   (* set operation: difference, modified interFunc *)
   fun diffFunc (EXP_SET [],EXP_SET b,diffSet) = EXP_SET (rev diffSet)
     | diffFunc (EXP_SET a,EXP_SET [],diffSet) = EXP_SET (rev diffSet)
     | diffFunc (EXP_SET (h1::t1),EXP_SET b,diffSet) = if (List.exists (fn x=>x=h1) b) then diffFunc(EXP_SET t1,EXP_SET b,diffSet) else diffFunc(EXP_SET t1,EXP_SET b,h1::diffSet)
-    | diffFunc _ = (printBadInput();raise (Fail "diffFunc exception"));
+    | diffFunc _ = EXP_VAR undef;
+(*    | diffFunc _ = (printBadInput();raise (Fail "diffFunc exception"));*)
 
   (* inverse function, reverse each pair of the set *)
   fun inverseFunc (EXP_SET [],inverse) = EXP_SET (rev inverse)
     | inverseFunc (EXP_SET ((EXP_TUPLE a)::t),inverse) = inverseFunc (EXP_SET t, EXP_TUPLE (rev a)::inverse)
-    | inverseFunc _ = (printBadInput();raise (Fail "inverseFunc exception"));
+    | inverseFunc _ = EXP_VAR undef;
+(*    | inverseFunc _ = (printBadInput();raise (Fail "inverseFunc exception"));*)
 
   (* boolean function that determines whether a function is injective, 1:1, only one key to each value *)
-  fun isInjFunc (EXP_SET []) = true
+  fun isInjFunc (EXP_SET []) = false
     | isInjFunc (EXP_SET ((EXP_TUPLE [a,b])::t)) = if (List.exists (fn EXP_TUPLE [x,b] => x=a | _ => raise (Fail "this is impossible #1\n")) t) then false else (isFunc (EXP_SET t))
     | isInjFunc _ = false;
 
@@ -217,16 +225,16 @@ local
     | opValue ((OP_TUPLE, [a]),vars) = expValue (a,vars)
     | opValue ((OP_TUPLE, tuple),vars) = EXP_TUPLE (tupleValue (tuple,vars))
     | opValue ((OP_EQUAL, [a,b]),vars) = if (expValue (a,vars))=(expValue (b,vars)) then EXP_INT 1 else EXP_INT 0
-    | opValue ((OP_MEMBER, [a,b]),vars) = if (member ((expValue (a,vars)),(expValue (b,vars)))) then EXP_INT 1 else EXP_INT 0
+    | opValue ((OP_MEMBER, [a,b]),vars) = member ((expValue (a,vars)),(expValue (b,vars)))
     | opValue ((OP_IS_FUNCTION, [a]),vars) = if (isFunc (expValue (a,vars))) then EXP_INT 1 else EXP_INT 0
     | opValue ((OP_APPLY_FUNCTION, [a, b]),vars) = applyFunc (expValue(a,vars), expValue(b,vars))
-    | opValue ((OP_DOMAIN, [a]),vars) = if (isFunc (expValue (a,vars))) then (domainFunc (expValue (a,vars),[])) else EXP_VAR "undefined"
-    | opValue ((OP_RANGE, [a]),vars) = if (isFunc (expValue (a,vars))) then (rangeFunc (expValue (a,vars),[])) else EXP_VAR "undefined"
+    | opValue ((OP_DOMAIN, [a]),vars) = if (isFunc (expValue (a,vars))) then (domainFunc (expValue (a,vars),[])) else EXP_VAR undef
+    | opValue ((OP_RANGE, [a]),vars) = if (isFunc (expValue (a,vars))) then (rangeFunc (expValue (a,vars),[])) else EXP_VAR undef
     | opValue ((OP_INTERSECTION, [a,b]),vars) = interFunc ((expValue (a,vars)),(expValue (b,vars)),[])
     | opValue ((OP_UNION, [a,b]),vars) = unionFunc ((expValue (a,vars)),(expValue (b,vars)))
     | opValue ((OP_DIFFERENCE, [a,b]),vars) = diffFunc ((expValue (a,vars)),(expValue (b,vars)),[])
-    | opValue ((OP_INVERSE, [a]),vars) = if (isFunc (expValue (a,vars))) then inverseFunc (expValue (a,vars),[]) else EXP_VAR "undefined"
-    | opValue ((OP_IS_INJECTIVE, [a]),vars) = if (isFunc (expValue (a,vars))) then (if (isInjFunc (expValue (a,vars))) then EXP_INT 1 else EXP_INT 0) else EXP_VAR "undefined"
+    | opValue ((OP_INVERSE, [a]),vars) = if (isFunc (expValue (a,vars))) then inverseFunc (expValue (a,vars),[]) else EXP_VAR undef
+    | opValue ((OP_IS_INJECTIVE, [a]),vars) = if (isFunc (expValue (a,vars))) then (if (isInjFunc (expValue (a,vars))) then EXP_INT 1 else EXP_INT 0) else EXP_VAR undef
     | opValue _ = (printBadInput();raise (Fail "opValue exception"))
 
   (* calculates value of expression arguments; singleton values are returned, operator expressions are passed to opValue *)
