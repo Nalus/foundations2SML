@@ -5,7 +5,7 @@ val default_input = "input.json";
 val default_output = "output.txt";
 
 (* the program is run as a script to make use of smlnj ability to parse json *)
-datatype operator = OP_SET | OP_TUPLE | OP_DOMAIN | OP_RANGE | OP_INVERSE | OP_EQUAL | OP_MEMBER | OP_IS_FUNCTION | OP_IS_INJECTIVE | OP_APPLY_FUNCTION | OP_NTH | OP_UNION | OP_INTERSECTION | OP_SET_DIFFERENCE;
+datatype operator = OP_SET | OP_TUPLE | OP_DOMAIN | OP_RANGE | OP_INVERSE | OP_EQUAL | OP_MEMBER | OP_IS_FUNCTION | OP_IS_INJECTIVE | OP_APPLY_FUNCTION | OP_NTH | OP_UNION | OP_INTERSECTION | OP_SET_DIFFERENCE | OP_DIAGONALIZE;
 
 (* added EXP_SET and EXP_TUPLE wrappers to unify types used *)
 datatype expression = EXP_INT of IntInf.int
@@ -31,8 +31,8 @@ fun operatorToName OP_SET            = "set"
   | operatorToName OP_NTH            = "nth"
   | operatorToName OP_UNION          = "union"
   | operatorToName OP_INTERSECTION   = "intersection"
-  | operatorToName OP_SET_DIFFERENCE = "set-difference"
-  | operatorToName OP_DIAGONALIZE    = "diagonalize";
+  | operatorToName OP_DIAGONALIZE    = "diagonalize"
+  | operatorToName OP_SET_DIFFERENCE = "set-difference";
 
 fun nameToOperator "set"               = OP_SET
   | nameToOperator "tuple"             = OP_TUPLE
@@ -47,8 +47,8 @@ fun nameToOperator "set"               = OP_SET
   | nameToOperator "nth"               = OP_NTH
   | nameToOperator "union"             = OP_UNION
   | nameToOperator "intersection"      = OP_INTERSECTION
-  | nameToOperator "set-difference"    = OP_SET_DIFFERENCE
   | nameToOperator "diagonalize"       = OP_DIAGONALIZE
+  | nameToOperator "set-difference"    = OP_SET_DIFFERENCE
   | nameToOperator n = raise (Fail ("illegal operator name: [^n]"));
 
 fun jsonToExpression (JSON.INT i) = EXP_INT i
@@ -143,40 +143,34 @@ local
   (* determine whether element exists in set *)
   fun member (a, EXP_SET set) = if (List.exists (fn x => x=a) set) then EXP_INT 1 else EXP_INT 0
     | member _ = EXP_VAR undef;
-(*    | member _ = (printBadInput();raise (Fail "member exception"));*)
 
   (* determine whether element is a function *)
   fun isFunc (EXP_SET []) = true
-    | isFunc (EXP_SET ((EXP_TUPLE [a,b])::t)) = if (List.exists (fn EXP_TUPLE [a,x] => x=b | _ => raise (Fail "this is impossible #0\n")) t) then false else (isFunc (EXP_SET t))
+    | isFunc (EXP_SET ((EXP_TUPLE [a,b])::t)) = if (List.exists (fn EXP_TUPLE [x,y] => x=a | _ => raise (Fail "this is impossible #0\n")) t) then false else (isFunc (EXP_SET t))
     | isFunc _ = false;
 
   fun apply ((EXP_TUPLE [x,y])::t,b) = if x=b then y else apply (t,b)
     | apply _ = EXP_VAR undef;
-(*    | apply _ = (printBadInput();raise (Fail "apply exception"));*)
 
   (* takes in a function, [(),(),...], and an element *)
   fun applyFunc (EXP_SET a,b) = if (isFunc (EXP_SET a)) then apply (a,b) else EXP_VAR undef
     | applyFunc _ = EXP_VAR undef;
-(*    | applyFunc _ = (printBadInput();raise (Fail "applyFunc exception"));*)
 
   (* returns left elements of all pairs of a function *)
   fun domainFunc (EXP_SET [],domSet) = EXP_SET (rev domSet)
     | domainFunc (EXP_SET (EXP_TUPLE [a,b]::t),domSet) = domainFunc (EXP_SET t,a::domSet)
     | domainFunc _ = EXP_VAR undef;
-(*    | domainFunc _ = (printBadInput();raise (Fail "domain exception"));*)
 
   (* returns right elements of all pairs of a function *)
   fun rangeFunc (EXP_SET [],rangeSet) = EXP_SET (rev rangeSet)
     | rangeFunc (EXP_SET (EXP_TUPLE [a,b]::t),rangeSet) = rangeFunc (EXP_SET t,a::rangeSet)
     | rangeFunc _ = EXP_VAR undef;
-(*    | rangeFunc _ = (printBadInput();raise (Fail "range exception"));*)
 
   (* set operation: intersection *)
   fun interFunc (EXP_SET [],EXP_SET b,interSet) = EXP_SET (rev interSet)
     | interFunc (EXP_SET a,EXP_SET [],interSet) = EXP_SET (rev interSet)
     | interFunc (EXP_SET (h1::t1),EXP_SET b,interSet) = if (List.exists (fn x=>x=h1) b) then interFunc(EXP_SET t1,EXP_SET b,h1::interSet) else interFunc(EXP_SET t1,EXP_SET b,interSet)
     | interFunc _ = EXP_VAR undef;
-(*    | interFunc _ = (printBadInput();raise (Fail "interFunc exception"));*)
 
   (* set operation: union *)
   fun garbage [] = []
@@ -186,7 +180,6 @@ local
     | unionFunc (EXP_SET a,EXP_SET []) = EXP_SET (a)
     | unionFunc (EXP_SET a,EXP_SET b) = EXP_SET (garbage a@b)
     | unionFunc _ = EXP_VAR undef;
-(*    | unionFunc _ = (printBadInput();raise (Fail "unionFunc exception"));*)
 
   (* set operation: difference, modified interFunc *)
   fun diffFunc (EXP_SET [],EXP_SET b,diffSet) = EXP_SET (rev diffSet)
@@ -203,12 +196,12 @@ local
 
   (* boolean function that determines whether a function is injective, 1:1, only one key to each value *)
   fun isInjFunc (EXP_SET []) = false
-    | isInjFunc (EXP_SET ((EXP_TUPLE [a,b])::t)) = if (List.exists (fn EXP_TUPLE [x,b] => x=a | _ => raise (Fail "this is impossible #1\n")) t) then false else (isFunc (EXP_SET t))
+    | isInjFunc (EXP_SET ((EXP_TUPLE [a,b])::t)) = if (List.exists (fn EXP_TUPLE [x,y] => y=b | _ => raise (Fail "this is impossible #1\n")) t) then false else (isFunc (EXP_SET t))
     | isInjFunc _ = false;
 
   fun diagonalize (EXP_SET [],v2,v3) = []
-    | diagonalize (EXP_SET (EXP_TUPLE [a,b])::t,v2,v3) = if (isFunc b) then EXP_SET (EXP_TUPLE [a,(if (OP_APPLY_FUNCTION, [v2, (OP_APPLY_FUNCTION, [b, a])] = EXP_VAR undef) then (OP_APPLY_FUNCTION, [v2, (OP_APPLY_FUNCTION, [b, a])]) else v3)::(diagonalize (t,v2,v3))]) else EXP_VAR undef
-    | diagonalize _ = EXP_VAR undef;
+    | diagonalize (EXP_SET ((EXP_TUPLE [a,b])::t),v2,v3) = if (isFunc b) then ((EXP_TUPLE [a,(if ((applyFunc (v2, (applyFunc (b, a)))) = EXP_VAR undef) then v3 else (applyFunc (v2, (applyFunc (b, a)))))])::(diagonalize (EXP_SET t,v2,v3))) else [EXP_INT 0]
+    | diagonalize _ = (printBadInput();raise (Fail "diagonalize exception "))
 
   (* start of mutually recursive declaration, very strong coupling *)
   (* finds list of values from a list, ie converts variables into values, also garbage collects *)
@@ -241,7 +234,7 @@ local
     | opValue ((OP_DIFFERENCE, [a,b]),vars) = diffFunc ((expValue (a,vars)),(expValue (b,vars)),[])
     | opValue ((OP_INVERSE, [a]),vars) = if (isFunc (expValue (a,vars))) then inverseFunc (expValue (a,vars),[]) else EXP_VAR undef
     | opValue ((OP_IS_INJECTIVE, [a]),vars) = if (isFunc (expValue (a,vars))) then (if (isInjFunc (expValue (a,vars))) then EXP_INT 1 else EXP_INT 0) else EXP_VAR undef
-    | opValue ((OP_DIAGONALIZE, [v1,v2,v3]),vars) = if (isFunc (expValue v1) andalso isFunc (expValue v2)) then diagonalize ((expValue v1),(expValue v2),(expValue v3)) else EXP_VAR undef
+    | opValue ((OP_DIAGONALIZE, [v1,v2,v3]),vars) = if ((isFunc (expValue (v1,vars))) andalso (isFunc (expValue (v2,vars)))) then (EXP_SET (diagonalize (expValue (v1,vars),expValue (v2,vars),expValue (v3,vars)))) else EXP_VAR undef
     | opValue _ = (printBadInput();raise (Fail "opValue exception"))
 
   (* calculates value of expression arguments; singleton values are returned, operator expressions are passed to opValue *)
