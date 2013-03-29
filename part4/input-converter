@@ -1,4 +1,4 @@
-#!/u1/staff/jbw/bin/smlnj-script
+#!/usr/bin/env smlnj-script
 ;(*-*-SML-*-*)
 
 (* *************************)
@@ -21,7 +21,7 @@ val ()
   = U.traceTags [
     (*
     "debug-parse-statement",
-    "debug-parse-expression",
+    "debug-parse-expression"
     "debug-parse-whitespace"
     *)
     ];
@@ -42,36 +42,43 @@ fun intInfToString i =
     then "-" ^ IntInf.toString (IntInf.abs i)
     else IntInf.toString i;
 
+(*
 (* Convert the type “order” to “bool”. *)
 fun isGreater GREATER = true
   | isGreater _ = false
-
+*)
+                  
 (* *************************************************************)
 (*** Trees for the simple language of math expressions (SLOME) *)
 (* *************************************************************)
 
 datatype operator = OP_SET | OP_TUPLE | OP_DOMAIN | OP_RANGE | OP_INVERSE
   | OP_EQUAL | OP_MEMBER | OP_IS_FUNCTION | OP_IS_INJECTIVE | OP_APPLY_FUNCTION | OP_NTH
-  | OP_UNION | OP_INTERSECTION | OP_SET_DIFFERENCE;
+  | OP_UNION | OP_INTERSECTION | OP_SET_DIFFERENCE | OP_DIAGONALIZE;
 
 val _ = U.makeParseEvalAndFormat ("operator", "Operator"); (* used when debugging *)
 (**SML-TES-SPEC val formatOperator : operator -> string *);
 (**SML-TES-SPEC val parseEvalOperator : string -> operator option *);
+
+val _ = U.makeParseEvalAndFormat ("operator option", "OperatorOption"); (* used when debugging *)
+(**SML-TES-SPEC val formatOperatorOption : operator option -> string *);
+(**SML-TES-SPEC val parseEvalOperatorOption : string -> operator option option *);
 
 fun operatorToName OP_SET            = "set"
   | operatorToName OP_TUPLE          = "tuple"
   | operatorToName OP_DOMAIN         = "domain"
   | operatorToName OP_RANGE          = "range"
   | operatorToName OP_INVERSE        = "inverse"
-  | operatorToName OP_EQUAL          = "equal"
-  | operatorToName OP_MEMBER         = "member"
+  | operatorToName OP_EQUAL          = "equal"          (* precedence 1 *)
+  | operatorToName OP_MEMBER         = "member"         (* precedence 2 *)
   | operatorToName OP_IS_FUNCTION    = "is-function"
   | operatorToName OP_IS_INJECTIVE   = "is-injective"
-  | operatorToName OP_APPLY_FUNCTION = "apply-function"
+  | operatorToName OP_APPLY_FUNCTION = "apply-function" (* precedence 6 *)
   | operatorToName OP_NTH            = "nth"
-  | operatorToName OP_UNION          = "union"
-  | operatorToName OP_INTERSECTION   = "intersection"
-  | operatorToName OP_SET_DIFFERENCE = "set-difference";
+  | operatorToName OP_UNION          = "union"          (* precedence 3 *)
+  | operatorToName OP_INTERSECTION   = "intersection"   (* precedence 4 *)
+  | operatorToName OP_SET_DIFFERENCE = "set-difference" (* precedence 5 *)
+  | operatorToName OP_DIAGONALIZE    = "diagonalize";
 
 fun nameToOperator "set"            = OP_SET
   | nameToOperator "tuple"          = OP_TUPLE
@@ -87,6 +94,7 @@ fun nameToOperator "set"            = OP_SET
   | nameToOperator "union"          = OP_UNION
   | nameToOperator "intersection"   = OP_INTERSECTION
   | nameToOperator "set-difference" = OP_SET_DIFFERENCE
+  | nameToOperator "diagonalize"    = OP_DIAGONALIZE
   | nameToOperator n = raise (Fail (q`illegal operator name: [^n]`));
 
 fun operatorPrecedence OP_EQUAL          = SOME 1
@@ -102,24 +110,6 @@ val precedenceAboveHighest = 7;
 fun precedenceRightAssociative 1 = true
   | precedenceRightAssociative _ = false;
 
-(*
-(* don't need this yet *)
-fun operatorId OP_SET            =  0
-  | operatorId OP_TUPLE          =  1
-  | operatorId OP_DOMAIN         =  2
-  | operatorId OP_RANGE          =  3
-  | operatorId OP_INVERSE        =  4
-  | operatorId OP_EQUAL          =  5
-  | operatorId OP_MEMBER         =  6
-  | operatorId OP_IS_FUNCTION    =  7
-  | operatorId OP_IS_INJECTIVE   =  8
-  | operatorId OP_APPLY_FUNCTION =  9
-  | operatorId OP_NTH            = 10
-  | operatorId OP_UNION          = 11
-  | operatorId OP_INTERSECTION   = 12
-  | operatorId OP_SET_DIFFERENCE = 13;
-*)
-
 fun operatorToSymbol OP_DOMAIN          = SOME "@dom"
   | operatorToSymbol OP_RANGE           = SOME "@ran"
   | operatorToSymbol OP_INVERSE         = SOME "@inverse"
@@ -131,6 +121,7 @@ fun operatorToSymbol OP_DOMAIN          = SOME "@dom"
   | operatorToSymbol OP_UNION           = SOME "∪"
   | operatorToSymbol OP_INTERSECTION    = SOME "∩"
   | operatorToSymbol OP_SET_DIFFERENCE  = SOME "∖"
+  | operatorToSymbol OP_DIAGONALIZE     = SOME "@diagonalize"
   | operatorToSymbol _                  = NONE;
 
 datatype expression = EXP_INT of IntInf.int
@@ -140,6 +131,13 @@ datatype expression = EXP_INT of IntInf.int
                      * positions inside operations, but we will
                      * enforce that separately. *)
                     | EXP_UNDEF;
+
+(* Converting between SLOME and SML syntax (for debugging) *)
+val _ = U.makeParseEvalAndFormat ("expression", "Expression");
+(**SML-TES-SPEC val formatExpression : expression -> string *);
+val _ = U.extendToString "formatExpression";
+(**SML-TES-DEC overload ToStringExtra (expression) *)
+(**SML-TES-DEC overload % : 'a -> string with 'a in (in ToStringDefault, in ToStringExtra) *)
 
 (*
 fun foldExpression {intFn, ...} (EXP_INT i) = intFn i
@@ -159,18 +157,20 @@ fun foldExpression {intFn, ...} (EXP_INT i) = intFn i
  * names begin with a letter (categories LC, Ll, Lm, Lo, Lt, Lu)
  * followed by letters and digits (category Nd). *)
 
-fun printExpression print
+fun printExpression {printString, fullParens}
 
   = let fun printList (_, [], _) = raise (Fail "impossible empty expression list asdiou9017")
           | printList (left, [exp], right)
-            = (print left; printExp exp; print right)
+            = (printString left; printExp exp; printString right)
           | printList (left, exp :: exps, right)
-            = (print left; printExp exp; printList (", ", exps, right))
+            = (printString left; printExp exp; printList (", ", exps, right))
 
         and printWithParensIfLowerPrecedence oper1 isLeft (exp as (EXP_INT _ | EXP_VAR _ | EXP_UNDEF))
             = printExp exp
           | printWithParensIfLowerPrecedence oper1 isLeft (exp as EXP_OP (oper2, _))
-            = if case (operatorPrecedence oper1, operatorPrecedence oper2)
+            = if fullParens
+                 orelse
+                 case (operatorPrecedence oper1, operatorPrecedence oper2)
                   of (NONE, _) => raise (Fail "should never happen jaflj238979fd")
                    | (SOME _, NONE) => false
                    | (SOME p1, SOME p2)
@@ -181,29 +181,36 @@ fun printExpression print
                          else op >=)
                             (* *** Might have these reversed, must check: *)
                             (p1, p2)
-              then (print "("; printExp exp; print ")")
+              then (printString "("; printExp exp; printString ")")
               else printExp exp
 
-        and printExp (EXP_INT i) = print (intInfToString i)
-          | printExp (EXP_VAR v) = print v
+        and printExp (EXP_INT i) = printString (intInfToString i)
+          | printExp (EXP_VAR v) = printString v
           | printExp (EXP_OP (oper, exps))
             = (case (oper, exps)
                 of (OP_SET, _) => printList ("{", exps, "}")
                  | (OP_TUPLE, [_]) => raise (Fail "tuples can not be length 1")
                  | (OP_TUPLE, _) => printList ("(", exps, ")")
-                 | (((OP_DOMAIN | OP_RANGE | OP_IS_FUNCTION), [_]) | (OP_NTH, [_,_]))
-                   => (print (valOf (operatorToSymbol oper)); printList ("(", exps, ")"))
+                 | (((OP_DOMAIN | OP_RANGE | OP_IS_FUNCTION | OP_INVERSE | OP_IS_INJECTIVE), [_]) | (OP_NTH, [_,_]) | (OP_DIAGONALIZE, [_,_,_]))
+                   => (printString (valOf (operatorToSymbol oper)); printList ("(", exps, ")"))
                  | ((OP_EQUAL | OP_MEMBER | OP_UNION | OP_INTERSECTION | OP_SET_DIFFERENCE | OP_APPLY_FUNCTION), [left, right])
                    => (printWithParensIfLowerPrecedence oper true left;
-                       print " ";
+                       printString " ";
                        case operatorToSymbol oper
                         of NONE => ()
-                         | SOME s => (print s; print " ");
+                         | SOME s => (printString s; printString " ");
                        printWithParensIfLowerPrecedence oper false right)
                  | _ => raise (Fail "this should never happen afds82307"))
-          | printExp EXP_UNDEF = print "undefined!";
+          | printExp EXP_UNDEF = printString "undefined!";
 
     in printExp
+    end;
+
+fun printExpressionToString exp
+  = let val outputStrings = ref []
+        fun print s = outputStrings := s :: ! outputStrings
+        val () = printExpression {printString = print, fullParens = false} exp
+    in String.concat (rev (! outputStrings))
     end;
 
 fun expressionIsValid _ (EXP_INT i) = true
@@ -214,7 +221,8 @@ fun expressionIsValid _ (EXP_INT i) = true
     = foldr (fn (exp, result) => result andalso expressionIsValid false exp) true exps
       andalso
       (case (oper, exps)
-       of (* any number of subexpressions: *)
+       of (OP_TUPLE, [_]) => false
+        | (* any number of subexpressions (≠ 1 if OP_TUPLE): *)
           ((OP_SET | OP_TUPLE), _) => true
         | (* must have exactly 1 subexpression: *)
           ((OP_DOMAIN | OP_RANGE | OP_INVERSE | OP_IS_FUNCTION | OP_IS_INJECTIVE), [_]) => true
@@ -222,6 +230,8 @@ fun expressionIsValid _ (EXP_INT i) = true
           ((OP_EQUAL | OP_MEMBER | OP_UNION | OP_INTERSECTION | OP_SET_DIFFERENCE | OP_APPLY_FUNCTION | OP_NTH),
            [_,_])
           => true
+        | (* must have exactly 3 subexpressions: *)
+          (OP_DIAGONALIZE, [_,_,_]) => true
         | (* anything else is invalid/illegal: *)
           _ => false)
   | expressionIsValid topLevelUndefOkay EXP_UNDEF = topLevelUndefOkay;
@@ -242,9 +252,10 @@ fun assertExpressionIsValidAsStatement stat
 fun assertExpressionListIsStatementList stats
   = List.app assertExpressionIsValidAsStatement stats;
 
-fun printStatementList print stats
+fun printStatementList (printDescr as {printString, ...}) stats
   = (assertExpressionListIsStatementList;
-     List.app (fn s => (printExpression print s; print ";\n"))
+     List.app (fn s => (printExpression printDescr s;
+                        printString ";\n"))
               stats)
 
 (* *******************************************)
@@ -306,7 +317,6 @@ fun parseNonEmptyStringContaining pred : (strm_char, string, 'strm) P.parser
 (*******************************************)
 
 structure P = U.GenParserComb;
-type strm_char = UTF8.wchar; (* to make it easy to switch character encoding *)
 
 val u = UTF8.fromAscii;
 
@@ -381,11 +391,13 @@ fun isAlphaNum c
 (* *** rename? *)
 fun isWhitespace c = UTF8.isAscii c andalso Char.contains " \t\r\n" (UTF8.toAscii c);
 
+(*
 fun variableChar c =
     if (UTF8.isAscii c)
     then Char.contains " \t\n\r:=;0123456789?-\"@(,)" (UTF8.toAscii c)
     else let val cStr = UTF8.encode c
          in not (List.exists (fn x => x = cStr) ["∈", "∪", "∩", "∖"]) end;
+*)
 
 val parseComment : (strm_char, unit, 'strm) P.parser =
     (fn eta => P.discard (P.seq3 (P.char (u #"#"),
@@ -455,7 +467,7 @@ fun handlePrecedenceAndAssociativity (exp, []) = exp
 
 fun parseTightExpression (reader : (strm_char, 'strm) U.reader) : (expression, 'strm) U.reader
   = P.trace
-        ["debug-parse-expression"] "parse-tight-expression-entry" (fn _ => "")
+        ["debug-parse-expression"] "parse-tight-expression-entry" (fn exp => printExpressionToString exp)
         (P.wrap'
              (fn (head :: rest)
                  => foldl
@@ -487,7 +499,9 @@ fun parseTightExpression (reader : (strm_char, 'strm) U.reader) : (expression, '
                                                      parseKeyword ("@is-injective", OP_IS_INJECTIVE),
                                                      parseKeyword ("is-injective", OP_IS_INJECTIVE),
                                                      parseKeyword ("@nth", OP_NTH),
-                                                     parseKeyword ("nth", OP_NTH)],
+                                                     parseKeyword ("nth", OP_NTH),
+                                                     parseKeyword ("@diagonalize", OP_DIAGONALIZE),
+                                                     parseKeyword ("diagonalize", OP_DIAGONALIZE)],
                                               (fn oper => (parseBracketedStuff (SOME oper))))),
                                     P.trace ["debug-parse-expression"] "parse-exp-set-tuple-parens" (fn x => "")
                                             (parseBracketedStuff NONE)])))))
@@ -495,7 +509,7 @@ fun parseTightExpression (reader : (strm_char, 'strm) U.reader) : (expression, '
 
 and parseBracketedStuff maybeOp : (strm_char, expression, 'strm) P.parser
   = P.trace
-        ["debug-parse-expression"] "parse-bracketed-stuff" (fn _ => "")
+        ["debug-parse-expression"] "parse-bracketed-stuff" (fn exp => printExpressionToString exp)
         (P.bind
              (P.wrap'
                   (fn c => c = u #"(")
@@ -508,10 +522,24 @@ and parseBracketedStuff maybeOp : (strm_char, expression, 'strm) P.parser
                   => P.validate
                          (fn (e1, xs, _)
                              => let val exps = e1 :: # 2 (ListPair.unzip xs)
-                                in case (maybeOp, isParens, length exps)
+                                in U.tracePrint
+                                       (["debug-parse-expression"],
+                                        fn () =>
+                                           "parse-bracketed-stuff pre-validate: maybeOp = "
+                                           ^ formatOperatorOption maybeOp
+                                           ^ ", isParens = "
+                                           ^ Bool.toString isParens
+                                           ^ ", exps = ["
+                                           ^ String.concatWith
+                                                 ", "
+                                                 (map printExpressionToString exps)
+                                           ^ "]\n");
+                                   (* *** This check should be done post-parsing! *)
+                                   case (maybeOp, isParens, length exps)
                                     of (SOME (oper as (OP_DOMAIN | OP_RANGE | OP_INVERSE | OP_IS_FUNCTION | OP_IS_INJECTIVE)), true, 1)
                                        => SOME (EXP_OP (oper, exps))
                                      | (SOME OP_NTH, true, 2) => SOME (EXP_OP (OP_NTH, exps))
+                                     | (SOME OP_DIAGONALIZE, true, 3) => SOME (EXP_OP (OP_DIAGONALIZE, exps))
                                      | (NONE, true, 1) => SOME (hd exps)
                                      | (NONE, true, _) => SOME (EXP_OP (OP_TUPLE, exps))
                                      | (NONE, false, _) => SOME (EXP_OP (OP_SET, exps))
@@ -526,10 +554,10 @@ and parseBracketedStuff maybeOp : (strm_char, expression, 'strm) P.parser
                                    (P.eatChar (fn c => c = (if isParens then u #")" else u #"}"))))))))
 
 and parseLooseExpression (reader : (strm_char, 'strm) U.reader) : (expression, 'strm) U.reader
-  = P.wrap'
-        handlePrecedenceAndAssociativity
-        (P.trace
-             ["debug-parse-expression"] "parse-loose-expression" (fn _ => "")
+  = P.trace
+        ["debug-parse-expression"] "parse-loose-expression" (fn exp => printExpressionToString exp)
+        (P.wrap'
+             handlePrecedenceAndAssociativity
              (P.seq
                   (parseTightExpression,
                    P.zeroOrMore
@@ -712,6 +740,8 @@ fun jsonToExpression (J.INT i) = EXP_INT i
                                 | [("arguments", J.ARRAY args),
                                    ("operator", J.STRING operName)]))
     = EXP_OP (nameToOperator operName, map jsonToExpression args)
+  | (* *** do we want to allow this in input expressions in JSON? *)
+    jsonToExpression J.NULL = EXP_UNDEF
   | jsonToExpression _
     = raise (Fail "illegal JSON that does not represent a math expression");
 
@@ -730,7 +760,7 @@ fun writeAllFormats (fileNameBase, statements)
          (fileNameBase ^ ".xml",
           XML.tostring (statementListToXml statements));
      U.writeEntireFile
-         (fileNameBase ^ ".json",
+         (fileNameBase ^ ".pretty.json",
           # string
             (U.OutputToString.withStringOutputStream
                  (fn strm =>
@@ -739,15 +769,31 @@ fun writeAllFormats (fileNameBase, statements)
                           strm = strm}
                          (statementListToJson statements))));
      U.writeEntireFile
+         (fileNameBase ^ ".json",
+          # string
+            (U.OutputToString.withStringOutputStream
+                 (fn strm =>
+                     JSONPrinter.print'
+                         {pretty = false,
+                          strm = strm}
+                         (statementListToJson statements))));
+     U.writeEntireFile
          (fileNameBase ^ ".sml",
           formatExpressionList statements);
      U.unwindProtect
          (fn f =>
              let fun print s = TextIO.output (f, s)
-             in printStatementList print statements
+             in printStatementList {printString = print, fullParens = false} statements
              end)
          (fn (f, _)  => TextIO.closeOut f)
-         (TextIO.openOut (fileNameBase ^ ".txt")));
+         (TextIO.openOut (fileNameBase ^ ".txt"));
+     U.unwindProtect
+         (fn f =>
+             let fun print s = TextIO.output (f, s)
+             in printStatementList {printString = print, fullParens = true} statements
+             end)
+         (fn (f, _)  => TextIO.closeOut f)
+         (TextIO.openOut (fileNameBase ^ ".more-parens.txt")));
 
 val mathText = U.readEntireFile "original-input.txt";
 

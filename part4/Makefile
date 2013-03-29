@@ -1,4 +1,4 @@
-all: part-3-run
+all: part-4-run
 
-part-3-run: part-3.sml
-	./part-3.sml	
+part-4-run: part-4.sml
+	./part-4.sml	

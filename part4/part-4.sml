@@ -31,7 +31,8 @@ fun operatorToName OP_SET            = "set"
   | operatorToName OP_NTH            = "nth"
   | operatorToName OP_UNION          = "union"
   | operatorToName OP_INTERSECTION   = "intersection"
-  | operatorToName OP_SET_DIFFERENCE = "set-difference";
+  | operatorToName OP_SET_DIFFERENCE = "set-difference"
+  | operatorToName OP_DIAGONALIZE    = "diagonalize";
 
 fun nameToOperator "set"               = OP_SET
   | nameToOperator "tuple"             = OP_TUPLE
@@ -47,6 +48,7 @@ fun nameToOperator "set"               = OP_SET
   | nameToOperator "union"             = OP_UNION
   | nameToOperator "intersection"      = OP_INTERSECTION
   | nameToOperator "set-difference"    = OP_SET_DIFFERENCE
+  | nameToOperator "diagonalize"       = OP_DIAGONALIZE
   | nameToOperator n = raise (Fail ("illegal operator name: [^n]"));
 
 fun jsonToExpression (JSON.INT i) = EXP_INT i
@@ -204,6 +206,10 @@ local
     | isInjFunc (EXP_SET ((EXP_TUPLE [a,b])::t)) = if (List.exists (fn EXP_TUPLE [x,b] => x=a | _ => raise (Fail "this is impossible #1\n")) t) then false else (isFunc (EXP_SET t))
     | isInjFunc _ = false;
 
+  fun diagonalize (EXP_SET [],v2,v3) = []
+    | diagonalize (EXP_SET (EXP_TUPLE [a,b])::t,v2,v3) = if (isFunc b) then EXP_SET (EXP_TUPLE [a,(if (OP_APPLY_FUNCTION, [v2, (OP_APPLY_FUNCTION, [b, a])] = EXP_VAR undef) then (OP_APPLY_FUNCTION, [v2, (OP_APPLY_FUNCTION, [b, a])]) else v3)::(diagonalize (t,v2,v3))]) else EXP_VAR undef
+    | diagonalize _ = EXP_VAR undef;
+
   (* start of mutually recursive declaration, very strong coupling *)
   (* finds list of values from a list, ie converts variables into values, also garbage collects *)
   (* because sets and tuples are implemented as lists, tuples are also garbage collected and are not allowed duplicates *)
@@ -235,6 +241,7 @@ local
     | opValue ((OP_DIFFERENCE, [a,b]),vars) = diffFunc ((expValue (a,vars)),(expValue (b,vars)),[])
     | opValue ((OP_INVERSE, [a]),vars) = if (isFunc (expValue (a,vars))) then inverseFunc (expValue (a,vars),[]) else EXP_VAR undef
     | opValue ((OP_IS_INJECTIVE, [a]),vars) = if (isFunc (expValue (a,vars))) then (if (isInjFunc (expValue (a,vars))) then EXP_INT 1 else EXP_INT 0) else EXP_VAR undef
+    | opValue ((OP_DIAGONALIZE, [v1,v2,v3]),vars) = if (isFunc (expValue v1) andalso isFunc (expValue v2)) then diagonalize ((expValue v1),(expValue v2),(expValue v3)) else EXP_VAR undef
     | opValue _ = (printBadInput();raise (Fail "opValue exception"))
 
   (* calculates value of expression arguments; singleton values are returned, operator expressions are passed to opValue *)
