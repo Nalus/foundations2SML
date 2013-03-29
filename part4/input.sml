@@ -69,5 +69,29 @@
           [EXP_VAR "x9",
            EXP_OP
              (OP_TUPLE,
-              [EXP_INT 0,EXP_OP (OP_APPLY_FUNCTION,[EXP_VAR "x10",EXP_INT 2])])])])]
+              [EXP_INT 0,EXP_OP (OP_APPLY_FUNCTION,[EXP_VAR "x10",EXP_INT 2])])])]),
+   EXP_OP
+     (OP_EQUAL,
+      [EXP_VAR "x18",
+       EXP_OP
+         (OP_DIAGONALIZE,
+          [EXP_OP
+             (OP_SET,
+              [EXP_OP
+                 (OP_TUPLE,
+                  [EXP_INT 0,
+                   EXP_OP (OP_SET,[EXP_OP (OP_TUPLE,[EXP_INT 0,EXP_INT 1])])]),
+               EXP_OP
+                 (OP_TUPLE,
+                  [EXP_INT 1,
+                   EXP_OP (OP_SET,[EXP_OP (OP_TUPLE,[EXP_INT 1,EXP_INT 2])])]),
+               EXP_OP
+                 (OP_TUPLE,
+                  [EXP_INT 2,
+                   EXP_OP (OP_SET,[EXP_OP (OP_TUPLE,[EXP_INT 0,EXP_INT 0])])])]),
+           EXP_OP
+             (OP_SET,
+              [EXP_OP (OP_TUPLE,[EXP_INT 0,EXP_INT 99]),
+               EXP_OP (OP_TUPLE,[EXP_INT 1,EXP_INT 0]),
+               EXP_OP (OP_TUPLE,[EXP_INT 2,EXP_INT 0])]),EXP_INT 9000])])]
  
