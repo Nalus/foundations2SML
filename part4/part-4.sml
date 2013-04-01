@@ -146,7 +146,7 @@ local
 
   (* determine whether element is a function *)
   fun isFunc (EXP_SET []) = true
-    | isFunc (EXP_SET ((EXP_TUPLE [a,b])::t)) = if (List.exists (fn EXP_TUPLE [x,y] => x=a | _ => raise (Fail "this is impossible #0\n")) t) then false else (isFunc (EXP_SET t))
+    | isFunc (EXP_SET ((EXP_TUPLE [a,b])::t)) = if (List.exists (fn EXP_TUPLE [a,x] => x=b | _ => raise (Fail "this is impossible #0\n")) t) then false else (isFunc (EXP_SET t))
     | isFunc _ = false;
 
   fun apply ((EXP_TUPLE [x,y])::t,b) = if x=b then y else apply (t,b)
@@ -196,7 +196,7 @@ local
 
   (* boolean function that determines whether a function is injective, 1:1, only one key to each value *)
   fun isInjFunc (EXP_SET []) = false
-    | isInjFunc (EXP_SET ((EXP_TUPLE [a,b])::t)) = if (List.exists (fn EXP_TUPLE [x,y] => y=b | _ => raise (Fail "this is impossible #1\n")) t) then false else (isFunc (EXP_SET t))
+    | isInjFunc (EXP_SET ((EXP_TUPLE [a,b])::t)) = if (List.exists (fn EXP_TUPLE [x,b] => x=a | _ => raise (Fail "this is impossible #1\n")) t) then false else (isFunc (EXP_SET t))
     | isInjFunc _ = false;
 
   fun diagonalize (EXP_SET [],v2,v3) = []
@@ -234,7 +234,7 @@ local
     | opValue ((OP_DIFFERENCE, [a,b]),vars) = diffFunc ((expValue (a,vars)),(expValue (b,vars)),[])
     | opValue ((OP_INVERSE, [a]),vars) = if (isFunc (expValue (a,vars))) then inverseFunc (expValue (a,vars),[]) else EXP_VAR undef
     | opValue ((OP_IS_INJECTIVE, [a]),vars) = if (isFunc (expValue (a,vars))) then (if (isInjFunc (expValue (a,vars))) then EXP_INT 1 else EXP_INT 0) else EXP_VAR undef
-    | opValue ((OP_DIAGONALIZE, [v1,v2,v3]),vars) = if ((isFunc (expValue (v1,vars))) andalso (isFunc (expValue (v2,vars)))) then (EXP_SET (diagonalize (expValue (v1,vars),expValue (v2,vars),expValue (v3,vars)))) else EXP_VAR undef
+    | opValue ((OP_DIAGONALIZE, [v1,v2,v3]),vars) = if ((isFunc (expValue (v1,vars)))(* andalso (isFunc (expValue (v2,vars)))*)) then (EXP_SET (diagonalize (expValue (v1,vars),expValue (v2,vars),expValue (v3,vars)))) else EXP_VAR undef
     | opValue _ = (printBadInput();raise (Fail "opValue exception"))
 
   (* calculates value of expression arguments; singleton values are returned, operator expressions are passed to opValue *)

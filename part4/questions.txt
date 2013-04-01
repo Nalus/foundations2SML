@@ -1,0 +1,19 @@
+(* Answers to additional questions to part-4 by Konstantin Devyatov *)
+
+1) Under what conditions does @diagonalize(E1,E2,E3) return a function F such that F does not belong to the value of E1? 
+
+- E1 is not an enumeration function for the set it returns;
+- F has consitions to catch all possible elements of E1(i) and change them to something different. So that F(i) != E1(i)(i) for i in dom(E1) in dom( ran(E1) );
+
+
+2) Why is this the same as the method of “diagonalization” introduced by Cantor? Is it only the same under some conditions? If so, what conditions?
+
+  The general method of this implementation is the same as Cantor's "diagonalization", because:
+    - higher order function E1 is organised in a table (2D array);
+    - a diagonal of this table is mutated by an arbitrary function F into a new row k (every element to something completely different);
+    - E1 is assumed to be an enumeration function for some set S, which means the new row must also be in the table E1
+    - a contradiction is derived, since E1(k)(k) must be the same as F(k), but cannot be by definition of F
+
+  However, this implementation of the algorithm is somewhat limited:
+    - E2( E1(i)(i) ) != E1(i)(i) for every i in dom(E1) in dom( ran(E1) )
+    - which means E2 must always mutate its input into somethign completely different
